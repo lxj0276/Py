@@ -36,7 +36,7 @@ def var(arr, lag):
     return fct
 
 
-def predict(df, lag=20, roll=250):
+def predict(df, lag, roll):
     idx = df.index[roll:]
     clmn = df.columns
     arr = df.values
@@ -48,23 +48,20 @@ def predict(df, lag=20, roll=250):
 
 
 N = 5
-A = 4
+A = 1
 lag = 2
 roll = 48
 df_rtn, df_exrtn = rtn(N, df_close)
 df_predict = predict(df_exrtn, lag, roll)
 df_rank = df_predict.rank(axis=1, ascending=False)
-df_buy = df_rank[df_rank <= A].shift(1)
-df_totalrtn = (df_buy * df_rtn).mean(axis=1)
-sr_value = (df_totalrtn + 1).cumprod()
+df_pos = df_rank.apply(lambda x: np.where(x <= A, 1, 0))
+sr_rtn = (df_pos.shift(1) * df_rtn).mean(axis=1)
+sr_value = (sr_rtn + 1).cumprod()
 plt.plot(sr_value)
 
 
 ''''
-v1 = netvalue(1)
+v1 = netvalue(1, lag=20, roll=250)
 v2 = netvalue(5, lag=2, roll=48)
 v3 = netvalue(20, lag=2, roll=48)
-
-plt.plot([v1, v2, v3])
-plt.legend(['1', '5', '20'])
 '''
