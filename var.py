@@ -47,17 +47,19 @@ def predict(df, lag=20, roll=250):
     return pd.DataFrame(brr, columns=clmn, index=idx)
 
 
-def netvalue(N, df=df_close, lag=20, roll=250):
-    df_rtn, df_exrtn = rtn(N, df)
-    df_predict = predict(df_exrtn, lag, roll)
-    df_rank = df_predict.rank(axis=1, ascending=False)
-    df_buy = df_rank[df_rank <= 4].shift(1)
-    df_totalrtn = (df_buy * df_rtn).mean(axis=1)
-    sr_value = (df_totalrtn + 1).cumprod()
-    return sr_value
+N = 5
+A = 4
+lag = 2
+roll = 48
+df_rtn, df_exrtn = rtn(N, df_close)
+df_predict = predict(df_exrtn, lag, roll)
+df_rank = df_predict.rank(axis=1, ascending=False)
+df_buy = df_rank[df_rank <= A].shift(1)
+df_totalrtn = (df_buy * df_rtn).mean(axis=1)
+sr_value = (df_totalrtn + 1).cumprod()
+plt.plot(sr_value)
 
-v2 = netvalue(5, lag=2, roll=48)
-v2.plot()
+
 ''''
 v1 = netvalue(1)
 v2 = netvalue(5, lag=2, roll=48)

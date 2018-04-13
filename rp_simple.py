@@ -26,8 +26,6 @@ df_logrtn = np.log(df_cls).diff(1).dropna()
 df_exrtn = df_logrtn.apply(lambda x: x - x[0], axis=1).iloc[:, 1:]
 
 
-
-
 def rp_simple(df_risk):
     df_pos = df_risk.apply(lambda x: (1 / x) / sum(1 / x), axis=1).dropna()
     sr_rtn = (df_rtn * df_pos).sum(axis=1).dropna()
@@ -54,7 +52,7 @@ sr_value = rp_simple(df_es)
 plt.plot(sr_value)
 
 # 方法四：半方差
-df_vol = df_exrtn.rolling(50).apply(lambda x: np.sqrt((x[x<0] ** 2).mean()))
+df_vol = df_exrtn.rolling(50).apply(lambda x: np.sqrt((x[x < 0] ** 2).mean()))
 sr_value = rp_simple(df_vol)
 plt.plot(sr_value)
 

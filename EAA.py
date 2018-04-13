@@ -41,9 +41,9 @@ plt.plot(sr_ew_value)
 
 # 计算动量Zi
 df_Zi = (df_rtn20_cum ** W[0] * (1 - df_corr) ** W[1]) / (df_vol ** W[2])
-df_post = df_Li.apply(lambda x: np.where(x.rank() <= N, 1/N, 0), axis=1)
-df_post[df_rtn20_cum < 1] = 0
-sr_rtn = (df_post.shift(1) * df_rtn20).sum(axis=1).dropna()
+df_pos = df_Li.apply(lambda x: np.where(x.rank() <= N, 1/N, 0), axis=1)
+df_pos[df_rtn20_cum < 1] = 0
+sr_rtn = (df_pos.shift(1) * df_rtn20).sum(axis=1).dropna()
 sr_value = (1 + sr_rtn).cumprod()
 plt.plot(sr_value)
 

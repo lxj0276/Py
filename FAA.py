@@ -31,19 +31,19 @@ M = 2  # lookback 2个月
 # 相对动量R, N=4, lookback=4M
 df_rtn20 = df_close.iloc[::20, 1:].pct_change()
 df_rtn20_cum = df_rtn20.rolling(M).apply(lambda x: np.prod(1 + x)).dropna()
-df_post = df_rtn20_cum.apply(lambda x: np.where(
+df_pos = df_rtn20_cum.apply(lambda x: np.where(
     (x.rank(ascending=False) <= N), 1/N, 0), axis=1)
-sr_rtn = (df_post.shift(1) * df_rtn20).sum(axis=1).dropna()
+sr_rtn = (df_pos.shift(1) * df_rtn20).sum(axis=1).dropna()
 sr_value = (1 + sr_rtn).cumprod()
 plt.plot(sr_value)
 
 # 加入绝对动量A, rmin=0
 df_rtn20 = df_close.iloc[::20, 1:].pct_change()
 df_rtn20_cum = df_rtn20.rolling(M).apply(lambda x: np.prod(1 + x)).dropna()
-df_post = df_rtn20_cum.apply(lambda x: np.where(
+df_pos = df_rtn20_cum.apply(lambda x: np.where(
     (x.rank(ascending=False) <= N), 1/N, 0), axis=1)
-df_post[df_rtn20_cum < 1] = 0
-sr_rtn = (df_post.shift(1) * df_rtn20).sum(axis=1).dropna()
+df_pos[df_rtn20_cum < 1] = 0
+sr_rtn = (df_pos.shift(1) * df_rtn20).sum(axis=1).dropna()
 sr_value = (1 + sr_rtn).cumprod()
 plt.plot(sr_value)
 
@@ -54,9 +54,9 @@ df_rtn20_cum = df_rtn20.rolling(M).apply(lambda x: np.prod(1 + x)).dropna()
 df_vol = df_rtn.rolling(M * 20).std().iloc[::20, :].dropna()
 df_Li = 1 * df_rtn20_cum.apply(lambda x: x.rank(ascending=False),
                                axis=1) + 0.5 * df_vol.apply(lambda x: x.rank(), axis=1)
-df_post = df_Li.apply(lambda x: np.where(x.rank() <= N, 1/N, 0), axis=1)
-df_post[df_rtn20_cum < 1] = 0
-sr_rtn = (df_post.shift(1) * df_rtn20).sum(axis=1).dropna()
+df_pos = df_Li.apply(lambda x: np.where(x.rank() <= N, 1/N, 0), axis=1)
+df_pos[df_rtn20_cum < 1] = 0
+sr_rtn = (df_pos.shift(1) * df_rtn20).sum(axis=1).dropna()
 sr_value = (1 + sr_rtn).cumprod()
 plt.plot(sr_value)
 
@@ -69,9 +69,9 @@ df_corr = df_rtn.rolling(M * 20).corr()
 df_corr_avg = df_corr.mean(axis=1).unstack().iloc[::20, :].dropna()
 df_Li = 1 * df_rtn20_cum.apply(lambda x: x.rank(ascending=False), axis=1) + 0.5 * df_vol.apply(
     lambda x: x.rank(), axis=1) + 0.5 * df_corr_avg.apply(lambda x: x.rank(), axis=1)
-df_post = df_Li.apply(lambda x: np.where(x.rank() <= N, 1/N, 0), axis=1)
-df_post[df_rtn20_cum < 1] = 0
-sr_rtn = (df_post.shift(1) * df_rtn20).sum(axis=1).dropna()
+df_pos = df_Li.apply(lambda x: np.where(x.rank() <= N, 1/N, 0), axis=1)
+df_pos[df_rtn20_cum < 1] = 0
+sr_rtn = (df_pos.shift(1) * df_rtn20).sum(axis=1).dropna()
 sr_value = (1 + sr_rtn).cumprod()
 plt.plot(sr_value)
 

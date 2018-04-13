@@ -4,10 +4,6 @@ Created on Sun Apr  8 14:46:45 2018
 
 @author: s_zhangyw
 """
-
-from pylab import mpl
-mpl.rcParams['font.sans-serif'] = ['SimHei']
-mpl.rcParams['axes.unicode_minus'] = False
 import numpy as np
 import pandas as pd
 import feather as ft
@@ -19,17 +15,17 @@ indexFile = 'C:/Users/s_zhangyw/Desktop/index.csv'
 df = pd.read_csv(indexFile, index_col=[2, 1], encoding='GBK')
 df_close = df['收盘价'].unstack()
 
-df_rtn = df_close.pct_change(1).iloc[1:, :]
+df_rtn = df_close.pct_change(1).iloc[:, 1:].dropna()
 df_logrtn = np.log(df_close).diff(1).dropna()
 df_exrtn = df_logrtn.apply(lambda x: x - x[0], axis=1).iloc[:, 1:]
 
 df_close5 = df_close.iloc[::5, :]
-df_rtn5 = df_close5.pct_change(1).iloc[1:, :]
+df_rtn5 = df_close5.pct_change(1).iloc[:, 1:].dropna()
 df_logrtn5 = np.log(df_close5).diff(1).dropna()
 df_exrtn5 = df_logrtn5.apply(lambda x: x - x[0], axis=1).iloc[:, 1:]
 
 df_close20 = df_close.iloc[::20, :]
-df_rtn20 = df_close20.pct_change(1).iloc[1:, :]
+df_rtn20 = df_close20.pct_change(1).iloc[:, 1:].dropna()
 df_logrtn20 = np.log(df_close20).diff(1).dropna()
 df_exrtn20 = df_logrtn20.apply(lambda x: x - x[0], axis=1).iloc[:, 1:]
 

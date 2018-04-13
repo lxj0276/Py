@@ -106,8 +106,8 @@ df_corr = df_rtn20.rolling(4).corr(sr_ew_rtn)
 
 df_rtn20 = df_close.iloc[::20, 1:].pct_change()
 df_rtn20_cum = df_rtn20.rolling(4).apply(lambda x: np.prod(1 + x)).dropna()
-df_post = df_rtn20_cum.apply(lambda x: np.where(
+df_pos = df_rtn20_cum.apply(lambda x: np.where(
     x.rank(ascending=False) <= 4, 1/4, 0), axis=1)
-sr_rtn = (df_post.shift(1) * df_rtn20).sum(axis=1).dropna()
+sr_rtn = (df_pos.shift(1) * df_rtn20).sum(axis=1).dropna()
 sr_value = (1 + sr_rtn).cumprod()
 sr_value.plot()
