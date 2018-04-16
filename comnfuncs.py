@@ -18,6 +18,5 @@ def indics(z):
         dd.append(1 - Z[-1] / Z.max())
     dd_max = max(dd)
     cm = rtn / dd_max
-    print(rtn, vol, sp, dd_max, cm)
 
     return rtn, vol, sp, dd_max, cm
