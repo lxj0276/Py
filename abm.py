@@ -34,8 +34,28 @@ for m in [2, 3, 4, 5, 6, 8, 10, 12, 15, 18, 24]:
     
 # 夏普比最优的参数基本在4， 5， 6
 M = 4
-df_rtn_sum = df_rtn20.rolling(M).sum()
-df_pos = df_rtn_sum.applymap(lambda x: 1 if x > 0 else 0)
+df_rtn_sum = df_rtn20.rolling(M).sum().dropna()
+df_pos = df_rtn_sum.applymap(lambda x: 1 if x > 0 else 0).fillna(0)
 sr_value = (1 + (df_pos.shift(1) * df_rtn20).mean(axis=1)).cumprod().dropna()
+print(indics(sr_value))
+sr_value.plot()
+
+# 不等权
+M = 4
+df_rtn_sum = df_rtn20.rolling(M).sum().dropna()
+df_pos = df_rtn_sum[df_rtn_sum > 0].fillna(0)
+df_pos = df_pos.apply(lambda x: x / sum(x), axis=1)
+sr_value = (1 + (df_pos.shift(1) * df_rtn20).sum(axis=1)).cumprod().dropna()
+print(indics(sr_value))
+sr_value.plot()
+
+# 超额收益
+df_logrtn = np.log(df_close.iloc[::20, :]).diff(1)
+df_exrtn = df_logrtn.dropna().apply(lambda x: x - x[0], axis=1).iloc[:, 1:]
+M = 4
+df_rtn_sum = df_exrtn.rolling(M).sum().dropna()
+df_pos = df_rtn_sum[df_rtn_sum > 0].fillna(0)
+df_pos = df_pos.apply(lambda x: x / sum(x), axis=1)
+sr_value = (1 + (df_pos.shift(1) * df_rtn20).sum(axis=1)).cumprod().dropna()
 print(indics(sr_value))
 sr_value.plot()
