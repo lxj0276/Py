@@ -47,3 +47,23 @@ print(indics(sr_value))
 
 k = 5; h = 1; exec(codestr)
 
+# 风险调整的时间序列动量
+
+codestr = '''
+df_rtn = (df_close.iloc[::20, 1:]).pct_change(1).dropna()
+df_logrtn = np.log(df_close.iloc[::, 1:]).diff(1).dropna()
+df_vol = np.log(df_close.iloc[::, 1:]).diff(1).ewm(span=60).std() * (250 ** 0.5)
+df_lrtn_vol = df_logrtn / df_vol
+df_rtn_sum = df_lrtn_vol.rolling(k*20).sum().iloc[::20, :].dropna()
+
+df_pos = df_rtn_sum.applymap(lambda x: 1 if x > 0 else 0)
+df_pos = df_pos * df_vol.loc[df_pos.index, :]
+df_pos = df_pos.apply(lambda x: (1 / x) / sum(1 / x), axis=1)
+
+sr_rtn = (df_pos.shift(1) * df_rtn).sum(axis=1)
+sr_value = (1 + sr_rtn).cumprod()
+sr_value.plot()
+print(indics(sr_value))
+'''
+
+k = 5; h = 1; exec(codestr)
