@@ -6,11 +6,11 @@ def clear(arr, d=2):
 
     return brr
 
-
-def indics(z):
+# z为净值list，f=20代表数据采集间隔为20个交易日
+def indics(z, f=20):
     N = len(z)
-    rtn = (z[-1] / z[0]) ** (12 / N) - 1
-    vol = z.pct_change().std() * (12 ** 0.5)
+    rtn = (z[-1] / z[0]) ** (250 / f / N) - 1
+    vol = z.pct_change().std() * ((250 / f) ** 0.5)
     sp = (rtn - 0.04) / vol
     dd = []
     for i in range(N):
