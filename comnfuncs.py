@@ -7,6 +7,8 @@ def clear(arr, d=2):
     return brr
 
 # z为净值list，f=20代表数据采集间隔为20个交易日
+
+
 def indics(z, f=20):
     N = len(z)
     rtn = (z[-1] / z[0]) ** (250 / f / N) - 1
