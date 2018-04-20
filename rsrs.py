@@ -16,7 +16,8 @@ from rp import rp
 from comnfuncs import indics
 
 csvFile = 'C:/Users/s_zhangyw/Desktop/assets.csv'
-df = pd.read_csv(csvFile, index_col=0, parse_dates=[0], encoding='GBK').iloc[::, :-1]
+df = pd.read_csv(csvFile, index_col=0, parse_dates=[
+                 0], encoding='GBK').iloc[::, :-1]
 df_rtn = df.pct_change(1).dropna()
 df_lrtn = np.log(df).diff(1).dropna()
 
@@ -28,16 +29,16 @@ df_rtn_h = df_h.pct_change(1).dropna()
 df_lrtn_h = np.log(df_h).diff(1).dropna()
 
 # 风险平价
-## 均值，波动率的预测
+# 均值，波动率的预测
 return_p = df_rtn_h.rolling(12).mean().shift(1)
-return_p = return_p.applymap(lambda x: ((1 + x) ** 12 -1))
+return_p = return_p.applymap(lambda x: ((1 + x) ** 12 - 1))
 vol_p = df_rtn_h.ewm(span=12, min_periods=12).std().shift(1)
 vol_p = vol_p.applymap(lambda x: x * (12 ** 0.5))
 corr_p = df_rtn_h.shift(1).expanding(12).corr()
 
 l_month = vol_p.dropna().index.tolist()
 
-## 均值向量，协方差矩阵
+# 均值向量，协方差矩阵
 l_u = []
 l_sigma = []
 for m in l_month:
@@ -48,26 +49,32 @@ for m in l_month:
     l_u.append(u)
     l_sigma.append(sigma)
 
-## 风险平价模型
-w = list(map(rp, l_sigma))    
+# 风险平价模型
+w = list(map(rp, l_sigma))
 df_w = pd.DataFrame(w, index=l_month, columns=df.columns)
 y = (df_rtn_h * df_w)
-y=y.dropna().sum(axis=1)
-z=(1 + y).cumprod()
-z_rp=z/z[0]
+y = y.dropna().sum(axis=1)
+z = (1 + y).cumprod()
+z_rp = z/z[0]
 z_rp.plot()
 indics(z_rp, h)
 
-## 动量因子
+# 动量因子
 l = 3
-k = 2
-df_tsm = df_lrtn_h.rolling(l).sum().applymap(lambda x: k if x > 0 else 1 / k).shift(1)
+k = 10
+df_tsm = df_lrtn_h.rolling(l).sum().applymap(
+    lambda x: k if x > 0 else 1 / k).shift(1)
 df_w_m = (df_w * df_tsm).apply(lambda x: x / sum(x), axis=1)
 y = (df_rtn_h * df_w_m)
-y=y.dropna().sum(axis=1)
-z=(1 + y).cumprod()
-z_rp=z/z[0]
-z_rp.plot()
-indics(z_rp, h)
+y = y.dropna().sum(axis=1)
+z = (1 + y).cumprod()
+z_mom = z/z[0]
+z_mom.plot()
+indics(z_mom, h)
 
-## 价值因子
+# 价值因子
+
+
+# RSRS指标
+rsfile = "C:/Users/s_zhangyw/Desktop/rs_300.csv"
+df_rs = pd.read_csv(rsfile, index_col=0, parse_dates=[0], encoding="GBK")
