@@ -28,7 +28,7 @@ df_code = get_wset(wset)
 codeList = df_code.wind_code.tolist()
 
 df_raw = pd.DataFrame()
-for code in codeList:
+for code in codeList[:3]:
     wsd = w.wsd(code, "close,total_shares,profit_ttm2,tot_assets,tot_liab", "2014-01-01", "2018-04-17", "unit=1;rptType=1")
     df = get_wsd(wsd)
     df['code'] = code
