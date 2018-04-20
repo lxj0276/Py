@@ -36,3 +36,42 @@ for code in codeList[:3]:
 
 df_raw.to_csv('raw.csv')
 pd.to_pickle(df_raw, 'raw.pkl')
+
+
+###################
+
+# -*- coding: utf-8 -*-
+
+# get data from Wind
+import numpy as np
+import pandas as pd
+from WindPy import w
+from datetime import *
+w.start()
+
+def get_wsd(wsd):
+    df = pd.DataFrame(wsd.Data).T
+    df.index = wsd.Times
+    df.columns = wsd.Fields 
+    return df
+
+def get_wset(wset):
+    df = pd.DataFrame(wset.Data).T
+    df.columns = wset.Fields
+    df.set_index('date', inplace=True)
+    return df
+
+wset = w.wset("sectorconstituent","date=2014-10-17;sectorid=1000012163000000")
+df_code = get_wset(wset)
+
+codeList = df_code.wind_code.tolist()
+
+df_raw = pd.DataFrame()
+for code in codeList[:3]:
+    wsd = w.wsd(code, "mkt_cap_ard,netprofit_ttm,equity_new,or_ttm,operatecashflow_ttm", "2005-01-03", "2014-12-31", "unit=1")
+    df = get_wsd(wsd)
+    df['code'] = code
+    df_raw = df_raw.append(df)
+    print(code)
+
+df_raw.to_csv('/data/raw.csv')
