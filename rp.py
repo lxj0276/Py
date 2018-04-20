@@ -52,7 +52,7 @@ def rp(sigma):
 
     #res = minimize(func, [1/N]*N, args=(sigma), jac=func_deriv, \
     res = minimize(func, [1/N]*N, args=(sigma), \
-        constraints=cons, bounds=[(0, 1)]*N, method='SLSQP', tol=1e-6, options={'disp':False, 'maxiter':100})
+        constraints=cons, bounds=[(0, 1)]*N, method='SLSQP', tol=1e-18, options={'disp':False, 'maxiter':1000})
     
     return res.x
 
@@ -80,7 +80,7 @@ def rb(sigma, budget=None):
 
     #res = minimize(func, [1/N]*N, args=(sigma), jac=func_deriv, \
     res = minimize(func, [1/N]*N, args=(sigma), \
-        constraints=cons, bounds=[(0, 1)]*N, method='SLSQP', tol=1e-6, options={'disp':False, 'maxiter':100})
+        constraints=cons, bounds=[(0, 1)]*N, method='SLSQP', tol=1e-18, options={'disp':False, 'maxiter':1000})
     
     return res.x
 
