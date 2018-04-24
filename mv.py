@@ -36,7 +36,7 @@ def mv(u, sigma, lmd=2.5):
 
     #res = minimize(func, [1/N]*N, args=(u, sigma, lmd), jac=func_deriv, \
     res = minimize(func, [1/N]*N, args=(u, sigma, lmd), \
-    	constraints=cons, bounds=[(0, 1)]*N, method='SLSQP', tol=1e-6, options={'disp':False, 'maxiter':100})
+    	constraints=cons, bounds=[(0, 1)]*N, method='SLSQP', tol=1e-12, options={'disp':False, 'maxiter':100})
     return res.x
 
 def mv_ub(u, sigma, rtn=3):
