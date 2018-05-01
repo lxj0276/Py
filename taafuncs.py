@@ -6,15 +6,18 @@ Created on Sun Apr  8 14:46:45 2018
 """
 
 import numpy as np
+import pandas as pd
+from scipy.optimize import minimize
 
 
 # 动量策略函数
 
 
 def pos2value(df, df_pos, h):
-    assert (df_pos>=0).all().all(), "negtive weight"
+    assert (df_pos >= 0).all().all(), "negtive weight"
     df_pos = df_pos.dropna().iloc[::h, :]
-    df_pos = df_pos.apply(lambda x: x / sum(x) if sum(x) else x, raw=False, axis=1)
+    df_pos = df_pos.apply(lambda x: x / sum(x) if sum(x)
+                          else x, raw=False, axis=1)
     df_tmp = df.copy()
     df_tmp.iloc[:, :] = 0
     df_pos = (df_pos + df_tmp).shift(1).fillna(method='ffill')
@@ -77,8 +80,9 @@ def taa_121(df, k, h, n):
     N = df.shape[1]
     df_rtn = df.rolling(k).apply(lambda x: np.product(1 + x) - 1)
 
-    df_pos = df_rtn.apply(lambda x: [1 if i > sorted(x, reverse=True)[int(N / n)] else 0 for i in x], axis=1)
-    
+    df_pos = df_rtn.apply(lambda x: [1 if i > sorted(x, reverse=True)[
+                          int(N / n)] else 0 for i in x], axis=1)
+
     sr_value = pos2value(df, df_pos, h)
 
     return sr_value
@@ -90,10 +94,13 @@ def taa_122(df, k, h, n):
     N = df.shape[1]
     X = np.array([np.ones(k), np.arange(k) + 1, (np.arange(k) + 1) ** 2])
     df_rtn = df.rolling(k).apply(lambda x: np.product(1 + x) - 1)
-    df_gama = df.rolling(k).apply(lambda y: np.linalg.lstsq(X.T, y, rcond=-1)[0][2])
+    df_gama = df.rolling(k).apply(
+        lambda y: np.linalg.lstsq(X.T, y, rcond=-1)[0][2])
 
-    df_pos1 = df_rtn.apply(lambda x: [1 if i > sorted(x, reverse=True)[int(N / n)] else 0 for i in x], axis=1)
-    df_pos2 = df_gama.apply(lambda x: [1 if i > sorted(x, reverse=True)[int(N / n)] else 0 for i in x], axis=1)
+    df_pos1 = df_rtn.apply(lambda x: [1 if i > sorted(x, reverse=True)[
+                           int(N / n)] else 0 for i in x], axis=1)
+    df_pos2 = df_gama.apply(lambda x: [1 if i > sorted(x, reverse=True)[
+                            int(N / n)] else 0 for i in x], axis=1)
     df_pos = df_pos1 * df_pos2
 
     sr_value = pos2value(df, df_pos, h)
@@ -113,7 +120,8 @@ def taa_123(df, k, h, delta, n):
 
     df_gsm = w1 * df_rtn.rank(ascending=False, axis=1) + w2 * df_vol.rank(
         ascending=True, axis=1) + w3 * df_rho_avg.rank(ascending=True, axis=1)
-    df_pos = df_gsm.apply(lambda x: [1 if i > sorted(x, reverse=True)[int(N / n)] else 0 for i in x], axis=1)
+    df_pos = df_gsm.apply(lambda x: [1 if i > sorted(x, reverse=True)[
+                          int(N / n)] else 0 for i in x], axis=1)
 
     sr_value = pos2value(df, df_pos, h)
 
@@ -127,8 +135,10 @@ def taa_124(df, k1, k2, h, n):
     df_rtn1 = df.rolling(k1).apply(lambda x: np.product(1 + x) - 1)
     df_rtn2 = df.rolling(k2).apply(lambda x: np.product(1 + x) - 1)
 
-    df_pos1 = df_rtn1.apply(lambda x: [1 if i > sorted(x, reverse=True)[int(N / n)] else 0 for i in x], axis=1)
-    df_pos2 = df_rtn2.apply(lambda x: [1 if i > sorted(x, reverse=False)[int(N / n)] else 0 for i in x], axis=1)
+    df_pos1 = df_rtn1.apply(lambda x: [1 if i > sorted(x, reverse=True)[
+                            int(N / n)] else 0 for i in x], axis=1)
+    df_pos2 = df_rtn2.apply(lambda x: [1 if i > sorted(x, reverse=False)[
+                            int(N / n)] else 0 for i in x], axis=1)
 
     df_pos = df_pos1 * df_pos2
 
@@ -139,23 +149,62 @@ def taa_124(df, k1, k2, h, n):
 # 因子配置，趋势信号
 
 
-def taa_211(df_close, n, L=[5, 20, 50, 100, 200]):
+def taa_211(df_close, n, h, L=[5, 20, 50, 100, 200]):
     df_rtn = df_close.pct_change(1)
-    df_PA = pd.DataFrame()
-    for l in L:
-        df_pal = df_close.rolling(l).mean() / df_close
-        df_PA['l'] = df_pal
+    arr_pa = np.zeros((len(L), df_close.shape[0], df_close.shape[1]))
+    for i in range(len(L)):
+        df_pal = df_close.rolling(L[i]).mean() / df_close
+        arr_pa[i] = df_pal.values
+
+    df_frtn = df_rtn.rolling(h).apply(lambda x: (1 + x).prod() - 1).shift(-h)
+    arr_frtn = df_frtn.values
+
+    arr_beta = np.zeros((arr_frtn.shape[0], len(L) + 1))
+
+    for i in range(len(arr_frtn)):
+        y = arr_frtn[i]
+        X = np.vstack([arr_pa[:, i, :], np.ones(len(y))])
+        beta = np.linalg.lstsq(X.T, y, rcond=-1)[0]
+        arr_beta[i] = beta
+
+        pass
 
 
-# TODO 212 213 214
+def taa_212(df_rtn, df_amt, k, h, n):
+    df_rtn_sum = df_rtn.rolling(k).apply(lambda x: (1 + x).prod() - 1)
+    df_amt_sum = df_amt.rolling(k).sum()
+
+    df_DPIOF = df_rtn_sum.abs() / df_amt_sum
+
+    pass
+
+
+def taa_213(df_rtn, sr_rtn_m, k, h, n):
+    N = df_rtn.shape[1]
+    df_std = df_rtn.rolling(250 * 1).std()
+    sr_std_m = sr_rtn_m.rolling(250 * 1).std()
+    df_corr = df_rtn.rolling(250 * 5).apply(lambda x: x.corr(sr_rtn_m))
+
+    df_beta = (df_corr * df_std).apply(lambda x: x * sr_std_m)
+
+    df_pos = df_beta.apply(lambda x: [1 if i > sorted(x, reverse=True)[
+                           int(N / n)] else 0 for i in x], axis=1)
+
+    sr_value = pos2value(df_rtn, df_pos, h)
+
+    return sr_value
+
+
+# TODO 214 missing CS data
+
 
 # 因子配置， Max
-
 
 def taa_215(df, k, h, n):
     N = df.shape[1]
     df_max = df.rolling(k).max()
-    df_pos = df_max.apply(lambda x: [1 if i > sorted(x, reverse=True)[int(N / n)] else 0 for i in x], axis=1)
+    df_pos = df_max.apply(lambda x: [1 if i > sorted(x, reverse=True)[
+                          int(N / n)] else 0 for i in x], axis=1)
     sr_value = pos2value(df, df_pos, h)
 
     return sr_value
@@ -168,8 +217,10 @@ def taa_216(df, k, h, n):
     df_skew = df.rolling(k).skew()
     df_kurt = df.rolling(k).kurt()
 
-    df_pos1 = df_skew.apply(lambda x: [1 if i > sorted(x, reverse=False)[int(N / n)] else 0 for i in x], axis=1)
-    df_pos2 = df_kurt.apply(lambda x: [1 if i > sorted(x, reverse=True)[int(N / n)] else 0 for i in x], axis=1)
+    df_pos1 = df_skew.apply(lambda x: [1 if i > sorted(x, reverse=False)[
+                            int(N / n)] else 0 for i in x], axis=1)
+    df_pos2 = df_kurt.apply(lambda x: [1 if i > sorted(x, reverse=True)[
+                            int(N / n)] else 0 for i in x], axis=1)
 
     df_pos = df_pos1 * df_pos2
 
@@ -177,4 +228,158 @@ def taa_216(df, k, h, n):
 
     return sr_value
 
-# TODO 217 218 需要指数数据
+
+def taa_217(df_rtn, sr_rtn_m, k, h, n):
+    N = df.shape[1]
+    y_plus = sr_rtn_m[sr_rtn_m > 0]
+    x_plus = df_rtn[sr_rtn_m > 0]
+    y_minus = sr_rtn_m[sr_rtn_m < 0]
+    x_minus = df_rtn[sr_rtn_m < 0]
+
+    beta_plus = y_plus.rolling(k).apply(
+        lambda x: x.cov(x_plus)) / x_plus.rolling(k).var()
+    beta_minus = y_minus.rolling(k).apply(
+        lambda x: x.cov(x_minus)) / x_minus.rolling(k).var()
+
+    df_pos = (beta_plus - beta_minus).apply(lambda x: [1 if i > sorted(
+        x, reverse=True)[int(N / n)] else 0 for i in x], axis=1)
+
+    sr_value = pos2value(df_rtn, df_pos, h)
+
+    return sr_value
+
+
+def taa_218(df_rtn, sr_rtn_m, k, h, n):
+    N = df.shape[1]
+    r = df_rtn.values
+    rm = sr_rtn_m.values
+    arr_rsd = np.array((df_rtn.shape[0], df_rtn.shape[1]))
+    for i in range(k, len(df_rtn)):
+        rsd = np.linalg.lstsq(
+            np.vstack([rm[i-k:i], np.ones(k)]).T, r[i-k:i, :], rcond=-1)[1]
+        arr_rsd[i] = rsd
+
+    df_pos = (pd.DataFrame(arr_rsd, index=)).apply(lambda x: [1 if i > sorted(x, reverse=True)[int(N / n)] else 0 for i in x], axis=1)
+
+    sr_value = pos2value(df_rtn, df_pos, h)
+
+    return sr_value
+
+
+def taa_221(df_rtn, k, ):
+    pass
+
+
+# 策略5.2.1—系统beta—最大去相关性DeCorr
+def taa_521(df_rtn, k, h):
+
+    df_corr = df_rtn.rolling(k).corr()
+    N = df_rtn.shape[1]
+    def optim(rho):
+
+        def func(x, rho, sign=1.0):
+            res = x.dot(rho).dot(x)
+            return sign * res
+
+        cons = ({'type': 'eq', 
+                'fun': lambda x: np.array(x.sum() - 1.0),
+                'jac': lambda x: np.ones(N)})
+
+        res = minimize(func, [1/N]*N, args=(rho), \
+            constraints=cons, bounds=[(0, 1)]*N, method='SLSQP', tol=1e-18, options={'disp':False, 'maxiter':1000})
+        
+        return res.x
+
+    l_w = []
+    for gp in df_corr.groupby(level=0):
+        l_w.append(optim(gp[1]))
+    
+    df_pos = pd.DataFrame(l_w, index=df_rtn.index, columns=df_rtn.columns)
+    sr_value = pos2value(df_rtn, df_pos, h)
+
+    return sr_value
+
+# 策略5.2.2—系统beta—最大夏普比率Sharpe
+def taa_522(df_rtn, k, h):
+    df_miu = df_rtn.rolling(k).apply(lambda x: (1 + x).prod() - 1)
+    df_cov = df_rtn.rolling(k).cov()
+    N = df_rtn.shape[1]
+    
+    def optim(miu, cov):
+
+        def func(x, miu, cov, sign=-1.0):
+            res = x.dot(miu) / (x.dot(cov).dot(x)) ** 0.5
+            return sign * res
+
+        cons = ({'type': 'eq', 
+                'fun': lambda x: np.array(x.sum() - 1.0),
+                'jac': lambda x: np.ones(N)})
+
+        res = minimize(func, [1/N]*N, args=(rho), \
+            constraints=cons, bounds=[(0, 1)]*N, method='SLSQP', tol=1e-18, options={'disp':False, 'maxiter':1000})
+        
+        return res.x
+
+    l_date = df_rtn.index.tolist()
+    l_w = []
+    for date in l_date:
+        miu = df_miu.loc[date, :]
+        cov = df_cov.loc[date, :]
+        l_w.append(optim(miu, cov))
+
+    df_pos = pd.DataFrame(l_w, index=df_rtn.index, columns=df_rtn.columns)
+    sr_value = pos2value(df_rtn, df_pos, h)
+
+    return sr_value
+
+# 策略5.2.3—系统beta—最小波动率MinVol
+def taa_523(df_rtn, k, h):
+    df_cov = df_rtn.rolling(k).cov()
+    N = df_rtn.shape[1]
+
+    def optim(cov):
+
+        def func(x, cov, sign=1.0):
+            res = x.dot(cov).dot(x)
+            return sign * res
+
+        cons = ({'type': 'eq', 
+                'fun': lambda x: np.array(x.sum() - 1.0),
+                'jac': lambda x: np.ones(N)})
+
+        res = minimize(func, [1/N]*N, args=(rho), \
+            constraints=cons, bounds=[(0, 1)]*N, method='SLSQP', tol=1e-18, options={'disp':False, 'maxiter':1000})
+        
+        return res.x
+
+    l_w = []
+    for gp in df_corr.groupby(level=0):
+        l_w.append(optim(gp[1]))
+
+    df_pos = pd.DataFrame(l_w, index=df_rtn.index, columns=df_rtn.columns)
+    sr_value = pos2value(df_rtn, df_pos, h)
+
+    return sr_value
+
+# 策略5.2.4—系统beta—风险平价RP
+
+def taa_524(df_rtn, k, h):
+    df_cov = df_rtn.rolling(k).cov()
+    N = df_rtn.shape[1]
+    
+    def optim(cov):
+
+        def func(x, cov, sign=1.0):
+            res = x.dot(cov).dot(x)
+            return sign * res
+
+        cons = ({'type': 'eq', 
+                'fun': lambda x: np.array(x.sum() - 1.0),
+                'jac': lambda x: np.ones(N)})
+
+        res = minimize(func, [1/N]*N, args=(rho), \
+            constraints=cons, bounds=[(0, 1)]*N, method='SLSQP', tol=1e-18, options={'disp':False, 'maxiter':1000})
+        
+        return res.x
+
+
