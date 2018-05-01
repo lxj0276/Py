@@ -133,3 +133,17 @@ def rb(sigma, budget=None):
                    constraints=cons, bounds=[(0, 1)]*N, method='SLSQP', tol=1e-18, options={'disp': False, 'maxiter': 1000})
 
     return res.x
+
+
+def optim(func):
+    '''
+    通用优化函数：输入目标函数函数
+    '''
+    cons = ({'type': 'eq',
+             'fun': lambda x: np.array(x.sum() - 1.0),
+             'jac': lambda x: np.ones(N)})
+
+    res = minimize(func, [1/N]*N, args=(rho),
+                   constraints=cons, bounds=[(0, 1)]*N, method='SLSQP', tol=1e-18, options={'disp': False, 'maxiter': 1000})
+
+    return res.x
