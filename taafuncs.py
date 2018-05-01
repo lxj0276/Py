@@ -90,7 +90,7 @@ def taa_122(df, k, h, n):
     N = df.shape[1]
     X = np.array([np.ones(k), np.arange(k) + 1, (np.arange(k) + 1) ** 2])
     df_rtn = df.rolling(k).apply(lambda x: np.product(1 + x) - 1)
-    df_gama = df.rolling(k).apply(lambda y: np.linalg.lstsq(X.T, y)[0][2])
+    df_gama = df.rolling(k).apply(lambda y: np.linalg.lstsq(X.T, y, rcond=-1)[0][2])
 
     df_pos1 = df_rtn.apply(lambda x: [1 if i > sorted(x, reverse=True)[int(N / n)] else 0 for i in x], axis=1)
     df_pos2 = df_gama.apply(lambda x: [1 if i > sorted(x, reverse=True)[int(N / n)] else 0 for i in x], axis=1)
@@ -139,11 +139,13 @@ def taa_124(df, k1, k2, h, n):
 # 因子配置，趋势信号
 
 
-def taa_211(df_close, n, l=[5, 20, 50, 100, 200]):
-    df_close = df_close.pct_change(1)
-    for i in l:
+def taa_211(df_close, n, L=[5, 20, 50, 100, 200]):
+    df_rtn = df_close.pct_change(1)
+    df_PA = pd.DataFrame()
+    for l in L:
+        df_pal = df_close.rolling(l).mean() / df_close
+        df_PA['l'] = df_pal
 
-        pass
 
 # TODO 212 213 214
 
