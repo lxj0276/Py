@@ -9,6 +9,8 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 
+import portfolio
+
 
 # 动量策略函数
 
@@ -270,7 +272,29 @@ def taa_221(df_rtn, k, ):
     pass
 
 
+
+# 策略4.1—目标波动率—标准CVo
+
+def taa_410(df_rtn, target_sigma, k, h):
+    df_u = df_rtn.rolling(k).apply(lambda x:(1 + x).prod() - 1)
+    df_cov = df_rtn.rolling(k).cov()
+
+    l_date = df_rtn.index.tolist()
+    l_w = []
+    for date in l_date:
+        u = df_u.loc[date, :]
+        cov = df_cov.loc[date, :]
+        l_w.append(portfolio.target_vol(u, cov, target_sigma))
+
+    df_pos = pd.DataFrame(l_w, index=df_rtn.index, columns=df_rtn.columns)
+    sr_value = pos2value(df_rtn, df_pos, h)
+
+    return sr_value
+
+    
+
 # 策略5.2.1—系统beta—最大去相关性DeCorr
+
 def taa_521(df_rtn, k, h):
 
     df_corr = df_rtn.rolling(k).corr()
@@ -300,25 +324,26 @@ def taa_521(df_rtn, k, h):
 
     return sr_value
 
+
+
 # 策略5.2.2—系统beta—最大夏普比率Sharpe
 
-
 def taa_522(df_rtn, k, h):
-    df_miu = df_rtn.rolling(k).apply(lambda x: (1 + x).prod() - 1)
+    df_u = df_rtn.rolling(k).apply(lambda x: (1 + x).prod() - 1)
     df_cov = df_rtn.rolling(k).cov()
     N = df_rtn.shape[1]
 
-    def optim(miu, cov):
+    def optim(u, cov):
 
-        def func(x, miu, cov, sign=-1.0):
-            res = x.dot(miu) / (x.dot(cov).dot(x)) ** 0.5
+        def func(x, u, cov, sign=-1.0):
+            res = x.dot(u) / (x.dot(cov).dot(x)) ** 0.5
             return sign * res
 
         cons = ({'type': 'eq',
                  'fun': lambda x: np.array(x.sum() - 1.0),
                  'jac': lambda x: np.ones(N)})
 
-        res = minimize(func, [1/N]*N, args=(rho),
+        res = minimize(func, [1/N]*N, args=(u, rho),
                        constraints=cons, bounds=[(0, 1)]*N, method='SLSQP', tol=1e-18, options={'disp': False, 'maxiter': 1000})
 
         return res.x
@@ -326,100 +351,69 @@ def taa_522(df_rtn, k, h):
     l_date = df_rtn.index.tolist()
     l_w = []
     for date in l_date:
-        miu = df_miu.loc[date, :]
+        u = df_u.loc[date, :]
         cov = df_cov.loc[date, :]
-        l_w.append(optim(miu, cov))
+        l_w.append(optim(u, cov))
 
     df_pos = pd.DataFrame(l_w, index=df_rtn.index, columns=df_rtn.columns)
     sr_value = pos2value(df_rtn, df_pos, h)
 
     return sr_value
 
-# 策略5.2.3—系统beta—最小波动率MinVol
 
+
+# 策略5.2.3—系统beta—最小波动率MinVol
 
 def taa_523(df_rtn, k, h):
     df_cov = df_rtn.rolling(k).cov()
     N = df_rtn.shape[1]
 
-    def optim(cov):
-
-        def func(x, cov, sign=1.0):
-            res = x.dot(cov).dot(x)
-            return sign * res
-
-        cons = ({'type': 'eq',
-                 'fun': lambda x: np.array(x.sum() - 1.0),
-                 'jac': lambda x: np.ones(N)})
-
-        res = minimize(func, [1/N]*N, args=(rho),
-                       constraints=cons, bounds=[(0, 1)]*N, method='SLSQP', tol=1e-18, options={'disp': False, 'maxiter': 1000})
-
-        return res.x
-
     l_w = []
     for gp in df_corr.groupby(level=0):
-        l_w.append(optim(gp[1]))
+        l_w.append(portfolio.min_vol(gp[1]))
 
     df_pos = pd.DataFrame(l_w, index=df_rtn.index, columns=df_rtn.columns)
     sr_value = pos2value(df_rtn, df_pos, h)
 
     return sr_value
 
-# 策略5.2.4—系统beta—风险平价RP
 
+
+# 策略5.2.4—系统beta—风险平价RP
 
 def taa_524(df_rtn, k, h):
     df_cov = df_rtn.rolling(k).cov()
     N = df_rtn.shape[1]
 
-    def optim(cov):
-
-        def func(x, cov, sign=1.0):
-        R = sigma.dot(x)
-        res = 0
-        for i in range(N):
-            for j in range(N):
-                res = res + ((x[i] * R[i] - x[j] * R[j])) ** 2 / R.dot(x)
-        return sign * res
-
-        cons = ({'type': 'eq',
-                 'fun': lambda x: np.array(x.sum() - 1.0),
-                 'jac': lambda x: np.ones(N)})
-
-        res = minimize(func, [1/N]*N, args=(rho),
-                       constraints=cons, bounds=[(0, 1)]*N, method='SLSQP', tol=1e-18, options={'disp': False, 'maxiter': 1000})
-
-        return res.x
-
     l_w = []
     for gp in df_cov.groupby(level=0):
-        l_w.append(optim(gp[1]))
+        l_w.append(portfolio.rp(gp[1]))
 
     df_pos = pd.DataFrame(l_w, index=df_rtn.index, columns=df_rtn.columns)
     sr_value = pos2value(df_rtn, df_pos, h)
 
     return sr_value
 
-# 策略5.2.5—系统beta—最大分散化MD
 
+
+# 策略5.2.5—系统beta—最大分散化MD
 
 def taa_525(df_rtn, k, h):
     df_cov = df_rtn.rolling(k).cov()
     df_std = df_rtn.rolling(k).std()
     N = df_rtn.shape[1]
 
-    def optim(cov):
+    def optim(std, cov):
 
         def func(x, std, cov, sign=-1.0):
-        res = x.dot(std) / (x.dot(cov).dot(x)) ** 0.5
-        return sign * res
+            res = x.dot(std) / (x.dot(cov).dot(x)) ** 0.5
+            return sign * res
 
         cons = ({'type': 'eq',
                  'fun': lambda x: np.array(x.sum() - 1.0),
                  'jac': lambda x: np.ones(N)})
 
-        res = minimize(func, [1/N]*N, args=(rho),
+        res = minimize(func, [1/N]*N, args=(std, cov),
                        constraints=cons, bounds=[(0, 1)]*N, method='SLSQP', tol=1e-18, options={'disp': False, 'maxiter': 1000})
 
         return res.x
@@ -437,12 +431,13 @@ def taa_525(df_rtn, k, h):
     return sr_value
 
 
+
 # 策略5.3.1—组合策略—XSM+RP+SMA
 
 def taa_531(df_rtn, k1, k2, k3, h, n):
     df_tsm = df_rtn.rolling(k1).apply(lambda x: (1 + x).prod() - 1)
     df_cov = df_rtn.rolling(k2).cov()
-    df_ma = df_rtn.rolling(k3).mean()
+    #df_ma = df_rtn.rolling(k3).mean()
     N = df.shape[1]
 
     df_pos = df_rtn.apply(lambda x: [1 if i > sorted(x, reverse=True)[
@@ -454,8 +449,8 @@ def taa_531(df_rtn, k1, k2, k3, h, n):
         cov = df_cov.loc[date, :]
         pos = df_pos.loc[date, :]
         cov = cov.loc[pos>0, pos>0]
-        sr_w = pd.Series(rp(cov), index=cov.index)
-        df_w = df_w.append(sr_w)
+        sr_w = pd.Series(portfolio.rp(cov), index=cov.index)
+        df_w = pd.concat([df_w, sr_w], axis=1)
 
     df_pos = df_w.T.reindex(index=df_rtn.index)
     sr_value = pos2value(df_rtn, df_pos, h)
