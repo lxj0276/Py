@@ -45,6 +45,7 @@ def mv(u, Sigma, lmd=2.5):
                    constraints=cons, bounds=[(0, 1)]*N, method='SLSQP', tol=1e-18, options={'disp': False, 'maxiter': 1000})
     return res.x
 
+
 def min_vol(Sigma):
     '''
     最小波动率模型：输入协方差矩阵
@@ -62,6 +63,7 @@ def min_vol(Sigma):
                    constraints=cons, bounds=[(0, 1)]*N, method='SLSQP', tol=1e-18, options={'disp': False, 'maxiter': 1000})
 
     return res.x
+
 
 def target_vol(u, Sigma, target_sigma):
     '''
@@ -243,10 +245,6 @@ def bl_mv(l_u, l_sigma, l_w_mkt):
     return l_w
 
 
-# we need lmd tau Omega P Q
-# w_mkt equal weight
-# P Q Omega
-# -*- coding: utf-8 -*-
 from numpy.linalg import inv
 def bl_rp(l_u, l_sigma, budget = [[1, 1, 1, 1, 1, 1]]):
     lmd = 2.5
@@ -282,9 +280,4 @@ def bl_rp(l_u, l_sigma, budget = [[1, 1, 1, 1, 1, 1]]):
             sigma = l_sigma[i]
             l_w.append(mv(u, sigma, lmd))
     return l_w
-
-
-# we need lmd tau Omega P Q
-# w_mkt equal weight
-# P Q Omega
 
