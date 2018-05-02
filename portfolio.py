@@ -45,6 +45,45 @@ def mv(u, Sigma, lmd=2.5):
                    constraints=cons, bounds=[(0, 1)]*N, method='SLSQP', tol=1e-18, options={'disp': False, 'maxiter': 1000})
     return res.x
 
+def min_vol(Sigma):
+    '''
+    最小波动率模型：输入协方差矩阵
+    '''
+
+    def func(x, Sigma, sign=1.0):
+        res = x.dot(cov).dot(x)
+        return sign * res
+
+    cons = ({'type': 'eq',
+             'fun': lambda x: np.array(x.sum() - 1.0),
+             'jac': lambda x: np.ones(N)})
+
+    res = minimize(func, [1/N]*N, args=(Sigma),
+                   constraints=cons, bounds=[(0, 1)]*N, method='SLSQP', tol=1e-18, options={'disp': False, 'maxiter': 1000})
+
+    return res.x
+
+def target_vol(u, Sigma, target_sigma):
+    '''
+    目标波动率模型：输入均值向量，协方差矩阵
+    '''
+
+    def func(x, u, Sigma, target_sigma, sign=-1.0):
+        res = x.dot(u)
+        return sign * res
+
+    N = len(Sigma)
+    cons = ({'type': 'eq',
+             'fun': lambda x: np.array(x.sum() - 1.0),
+             'jac': lambda x: np.ones(N)},
+             {'type': 'eq',
+             'fun': lambda x: x.dot(Sigma).dot(x) - target_sigma,
+             'jac': lambda x: 2 * Sigma.dot(x)})
+
+    res = minimize(func, [1/N]*N, args=(u, Sigma, target_sigma),
+                   constraints=cons, bounds=[(0, 1)]*N, method='SLSQP', tol=1e-18, options={'disp': False, 'maxiter': 1000})
+    return res.x
+
 
 def rp(Sigma):
     '''
