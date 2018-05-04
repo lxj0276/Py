@@ -156,11 +156,11 @@ plt.savefig('7.png')
 
 # 风险平价模型
 '''
-w = list(map(rp, l_sigma))    
+w = list(map(max_entropy, l_sigma))    
 df_w = pd.DataFrame(w, index=l_month, columns=df_return.columns)
 y = (df_return * df_w)
 y=y.dropna().sum(axis=1)
-z=(y/100 + 1).cumprod()
+z=(y + 1).cumprod()
 z_rp=z/z[0]
 fig(z_rp, w, 'RP Model')
 
