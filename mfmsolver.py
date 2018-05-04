@@ -31,10 +31,10 @@ def main():
     arr_w_bench = 
     arr_expect_rtn = 
     trade_cost = 
-    X_style =
-    X_industry =
-    tol_style =
-    tol_industry =
+    X_style = 
+    X_industry = 
+    tol_style = 
+    tol_industry = 
     
     arr_w = arr_w_bench.copy()
 
