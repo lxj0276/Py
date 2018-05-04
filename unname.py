@@ -80,14 +80,31 @@ def max_entropy(Sigma):
 
     def func(x, Sigma, sign=1.0):
         eig_values, eig_vectors= np.linalg.eig(Sigma)
-        y = eig_vectors.T.dot(x)
-        v = (y**2) * (eig_values**2)
+        y = eig_vectors.real.dot(x)
+        v = (y**2) * (eig_values.real**2)
         p = v / v.sum()
-        res = (p * safe_log(p)).sum().real
+        res = (p * safe_log(p)).sum()
         return res * sign
     
     return optimize(func, Sigma)
 
+def max_entropy_2(Sigma):
+    
+    def safe_log(arr):
+        brr = np.zeros_like(arr)
+        brr = np.where(arr>0, np.log(arr), 0)
+        return brr
+
+    def func(x, Sigma, sign=1.0):
+        Sigma = (Sigma + Sigma.T) / 2.0
+        eig_values, eig_vectors= np.linalg.eig(Sigma)
+        y = eig_vectors.T.dot(x)
+        v = (y**2) * eig_values
+        p = v / v.sum()
+        res = v.var()
+        return res * sign
+    
+    return optimize(func, Sigma)
 
 
 
