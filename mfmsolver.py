@@ -25,19 +25,19 @@ def solver(w_1, w_bench, expect_rtn, trade_cost, X_style, X_industry, tol_style,
     X_industry: array of shape (n, 行业类别数量)
         行业矩阵
     tol_style: float
-        风格约束容忍度（标量/向量）
+        风格约束容忍度
     tol_industry: float
-        行业约束容忍度（向量）
+        行业约束容忍度
 
     Returns
     -------
     w* : array of shape (n)
-        最优权重
+        最优权重向量
     
     Notes
     -------
-    这里假设风格因子为连续变量，如市值、市盈率等。
-    如果为虚拟变量，需参考行业约束设置约束条件。
+    这里假设风格因子为连续变量，如市值、市盈率等；
+    如果为虚拟变量，则需参考行业约束设置约束条件。
     
     '''
     
@@ -51,7 +51,7 @@ def solver(w_1, w_bench, expect_rtn, trade_cost, X_style, X_industry, tol_style,
              'fun': lambda x: np.array(x.sum() - 1.0),
              'jac': lambda x: np.ones(N)},
              {'type': 'ineq',
-             'fun': lambda x: tol_style - abs(x.dot(X_style) / w_bench.dot(X_style) - 1)},
+             'fun': lambda x: tol_style - abs(x.dot(X_style) / w_bench.dot(X_style) - 1.0)},
             {'type': 'ineq',
              'fun': lambda x: np.ones(N) * tol_industry - (x - w_bench).dot(X_industry).abs()}
              )
