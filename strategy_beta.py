@@ -22,6 +22,7 @@ w* : array of shape (n)
 
 
 import numpy as np
+import pandas as pd
 from scipy.optimize import minimize
 
 
@@ -36,6 +37,32 @@ def optimize(func, *args):
 
     return res.x
 
+
+def weights_solver(method, *args):
+    ''' 组合优化求解
+
+    Parameters
+    ----------
+    method : str
+        组合优化函数名称，例如："risk_parity"
+    *args : list
+        以list形式传入优化函数需要的参数序列
+
+    Returns
+    -------
+    l_weights : list
+        每期的最优权重 
+    
+    Notes
+    -------
+    传入*args时，需要与优化函数的位置参数顺序保持一致
+    
+    '''
+    
+    l_weights = list(map(eval(method), *args))
+    return l_weights
+
+#######################################################################################
 
 def max_sharp(r, Sigma):
     ''' 最大夏普比
@@ -166,14 +193,12 @@ def most_decorr(Rho):
 
 def max_entropy(Sigma, k=2):
     ''' 最大熵   
-
     Parameters
     ----------
     Sigma : array of shape (n, n)
         协方差矩阵
     k : int
         约束条件个数
-
     Returns
     -------
     w* : array of shape (n)
@@ -188,16 +213,41 @@ def max_entropy(Sigma, k=2):
     def func(x, Sigma, sign=1.0):
         Sigma = (Sigma + Sigma.T) / 2.0
         eig_values, eig_vectors = np.linalg.eig(Sigma)
-        
+
         descend_order = eig_values.argsort()[::-1]
         a = eig_values[descend_order]
         b = eig_vectors[:, descend_order]
-        
+
         y = b.T.dot(x)
         v = (y**2) * a
         p = v / v.sum()
         res = (p * safe_log(p))[k:].sum()
-        
         return res * sign
 
     return optimize(func, Sigma)
+
+
+#######################################################################################
+
+# Demo
+
+## 读收益率数据
+df_rtn = pd.read_csv('rtn.csv', index_col=0)
+
+## 收益率和协方差的预测
+rtn_p = df_rtn.rolling(20).mean().shift(1)
+cov_p = df_rtn.rolling(20).cov().shift(1)
+
+## 转换为list
+l_month = rtn_p.dropna().index.tolist()
+l_r = []
+l_Sigma = []
+for m in l_month:
+    u = np.array(rtn_p.loc[m])
+    Sigma = np.array(cov_p.loc[m])
+    l_r.append(u)
+    l_Sigma.append(Sigma)
+
+## 用最大夏普比优化
+l_weights = weights_solver("max_sharp", l_r, l_Sigma)
+
