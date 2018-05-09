@@ -40,7 +40,7 @@ def optimize(func, *args):
 
 #######################################################################################
 
-def max_sharp(r, Sigma):
+def max_sharpe(r, Sigma):
     ''' 最大夏普比
 
     Parameters
@@ -253,4 +253,4 @@ if __name__ == "__main__":
         l_Sigma.append(Sigma)
 
     # 用最大夏普比优化
-    l_weights = weights_solver("max_sharp", l_r, l_Sigma)
+    l_weights = weights_solver("max_sharpe", l_r, l_Sigma)
