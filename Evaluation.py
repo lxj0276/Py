@@ -26,7 +26,8 @@ class evaluation(object):
 
     def _ret_p(self):
         ret = (df_Pos * df_ret).sum(axis=1)
-        ret_annual = ret.apply(lambda x: (1 + x) ** (250 / self.delta_days))
+        ret_annual = ret.apply(lambda x: (
+            1 + x) ** (250 / self.delta_days) - 1)
         return ret_annual
 
     def _net_value(self):
@@ -55,6 +56,12 @@ class evaluation(object):
     def Turnover(self):
         return self.pos.diff(1).abs().sum().sum() / 2.0 * 250.0 / self.trade_days
 
+    def Average(self):
+        return self.ret_p.mean()
+
+    def CAGR(self):
+        return (self.net_value[-1] / self.net_value[0]) ** (250.0 / self.trade_days) - 1.0
+
     def _Ret_Roll(self, Y):
         lag = int(Y * 250 / self.delta_days)
         r1 = self.value.pct_change(lag).mean()
@@ -76,6 +83,26 @@ class evaluation(object):
 
     def YearExRet(self):
         return self.YearRet() - rate_riskfree
+
+    def CAGR_Bull_Bear(self, sr_state):
+        sr_state.name = "state"
+        tmp = pd.concat([self.ret_p, sr_state], axis=1)
+        return tmp.groupby(by="state").agg(mean)
+
+    def CAGR_Factor(self, sr_factor):
+        sr_factoe.name = "factor"
+        tmp = pd.concat([self.ret_p, sr_factor], axis=1)
+        return tmp.groupby(by="factor").agg(mean)
+
+    def ExCAGR_Bull_Bear(self, sr_state):
+        sr_state.name = "state"
+        tmp = pd.concat([self.ret_p, sr_state], axis=1)
+        return tmp.groupby(by="state").agg(mean) - self.rate_riskfree
+
+    def ExCAGR_Factor(self, sr_factor):
+        sr_factoe.name = "factor"
+        tmp = pd.concat([self.ret_p, sr_factor], axis=1)
+        return tmp.groupby(by="factor").agg(mean) - self.rate_riskfree
 
     def Stdev(self):
         return self.ret_p.std() * (250 / self.delta_days) ** 0.5
@@ -157,7 +184,8 @@ class evaluation(object):
         return SR * (1 + self.Skew() * SR / 6.0 - self.Kurt() * SR ** 2 / 24.0)
 
     def DSR(self):
-        pass
+        SR_roll = (selfret_p.rolling(int(250 / self.delta_days)).mean() -
+                   rate_riskfree) / self.ret_p.rolling(int(250 / self.delta_days)).std()
 
     def Treynor(self, ret_bench):
         X = np.vstack([ret_bench.values, np.ones(len(ret_bench))])
