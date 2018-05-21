@@ -232,6 +232,19 @@ def weights_solver(method, *args):
 
 #######################################################################################
 
+def pos2value(df_rtn, df_pos, h):
+    #assert (df_pos >= 0).all().all(), "negtive weight"
+    df_pos = df_pos.dropna().iloc[::h, :]
+    df_pos = df_pos.apply(lambda x: x / sum(x) if sum(x)
+                          else x, raw=False, axis=1)
+    df_tmp = df_rtn.copy()
+    df_tmp.iloc[:, :] = 0
+    df_pos = (df_pos + df_tmp).fillna(method='ffill')
+    sr_rtn = (df_rtn * df_pos).dropna().sum(axis=1)
+    sr_value = (1 + sr_rtn).cumprod()
+
+    return sr_value
+
 # Demo
 if __name__ == "__main__":
 
@@ -254,3 +267,8 @@ if __name__ == "__main__":
 
     # 用最大夏普比优化
     l_weights = weights_solver("max_sharpe", l_r, l_Sigma)
+    
+    # 回测净值
+    df_pos = pd.DataFrame(l_weights, index=df_rtn.index[20:], columns=df_rtn.columns)
+    sr_value = pos2value(df_rtn, df_pos, 20)
+    sr_value.plot()
