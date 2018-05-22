@@ -36,7 +36,7 @@ def optimize(func, func_deriv, *args):
              'fun': lambda x: np.array(x.sum() - 1.0),
              'jac': lambda x: np.ones(N)})
     res = minimize(func, [1.0/N]*N, args=args, jac=func_deriv, constraints=cons, bounds=[(0, 1)] * N,
-                   method='SLSQP', tol=1e-16, options={'disp': 1, 'maxiter': 1000})
+                   method='SLSQP', tol=1e-16, options={'disp': 1, 'maxiter': 100})
 
     return res.x
 
@@ -269,7 +269,6 @@ if __name__ == "__main__":
     # 读收益率数据
     df_rtn = pd.read_csv('rtn.csv', index_col=0)
     
-
     # 收益率和协方差的预测
     rtn_p = df_rtn.shift(1).rolling(20).mean()
     cov_p = df_rtn.shift(1).rolling(20).cov()
@@ -291,8 +290,3 @@ if __name__ == "__main__":
     df_pos = pd.DataFrame(l_weights, rtn_p.dropna().index, columns=df_rtn.columns)
     sr_value = pos2value(df_rtn, df_pos, 20)
     sr_value.plot()
-
-for i in range(500, 800):
-    r, Sigma = l_r[i], l_Sigma[i]
-    max_sharpe(r, Sigma)
-    print(i, i, i, i, i)
