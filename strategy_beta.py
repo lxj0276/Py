@@ -23,17 +23,20 @@ w* : array of shape (n)
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+plt.rcParams['font.sans-serif'] = ['SimHei']
+plt.rcParams['axes.unicode_minus'] = False
 from scipy.optimize import minimize
 
 
-def optimize(func, *args):
+def optimize(func, func_deriv, *args):
 
     N = len(args[0])
     cons = ({'type': 'eq',
              'fun': lambda x: np.array(x.sum() - 1.0),
              'jac': lambda x: np.ones(N)})
-    res = minimize(func, [1/N]*N, args=args, constraints=cons, bounds=[(0, 1)] * N,
-                   method='SLSQP', tol=1e-18, options={'disp': False, 'maxiter': 1000})
+    res = minimize(func, [1.0/N]*N, args=args, jac=func_deriv, constraints=cons, bounds=[(0, 1)] * N,
+                   method='SLSQP', tol=1e-16, options={'disp': 1, 'maxiter': 1000})
 
     return res.x
 
@@ -57,10 +60,16 @@ def max_sharpe(r, Sigma):
     '''
 
     def func(x, r, Sigma, sign=-1.0):
-        res = x.dot(r) / (x.dot(Sigma).dot(x)) ** 0.5
+        s = x.dot(Sigma).dot(x)
+        res = x.dot(r) / s ** 0.5
         return res * sign
 
-    return optimize(func, r, Sigma)
+    def func_deriv(x, r, Sigma, sign=-1.0):
+        s = x.dot(Sigma).dot(x)
+        res = (r * s ** 0.5 - x.dot(r) * Sigma.dot(x) / s ** 0.5) / s
+        return res * sign
+
+    return optimize(func, func_deriv, r, Sigma)
 
 
 def min_vol(Sigma):
@@ -82,7 +91,7 @@ def min_vol(Sigma):
         res = (x.dot(Sigma).dot(x)) ** 0.5
         return res * sign
 
-    return optimize(func, Sigma)
+    return optimize(func, None, Sigma)
 
 
 def vol_parity(sigma):
@@ -121,16 +130,14 @@ def risk_parity(Sigma):
         res = ((np.tile(RC, (len(RC), 1)).T - RC) ** 2).sum().sum()
         return res * sign
 
-    return optimize(func, Sigma)
+    return optimize(func, None, Sigma)
 
 
-def most_diversified(sigma, Sigma):
+def most_diversified(Sigma):
     ''' 最大分散化   
 
     Parameters
     ----------
-    sigma : array of shape (n)
-        方差向量
     Sigma : array of shape (n, n)
         协方差矩阵
 
@@ -140,11 +147,18 @@ def most_diversified(sigma, Sigma):
         最优权重向量   
     '''
 
-    def func(x, sigma, Sigma, sign=-1.0):
+    def func(x, Sigma, sign=-1.0):
+        sigma = Sigma.diagonal()
         res = x.dot(sigma) / (x.dot(Sigma).dot(x)) ** 0.5
         return res * sign
 
-    return optimize(func, sigma, Sigma)
+    def func_deriv(x, Sigma, sign=-1.0):
+        sigma = Sigma.diagonal()
+        s = x.dot(Sigma).dot(x)
+        res = (sigma * s ** 0.5 - x.dot(sigma) * Sigma.dot(x) / s ** 0.5) / s
+        return res * sign
+
+    return optimize(func, func_deriv, Sigma)
 
 
 def most_decorr(Rho):
@@ -163,8 +177,12 @@ def most_decorr(Rho):
     def func(x, Rho, sign=1.0):
         res = x.dot(Rho).dot(x)
         return res * sign
+    
+    def func_deriv(x, Rho, sign=1.0):
+        res = 2 * Rho.dot(x)
+        return res * sign
 
-    return optimize(func, Rho)
+    return optimize(func, func_deriv, Rho)
 
 
 def max_entropy(Sigma, k=2):
@@ -200,7 +218,7 @@ def max_entropy(Sigma, k=2):
         res = (p * safe_log(p))[k:].sum()
         return res * sign
 
-    return optimize(func, Sigma)
+    return optimize(func, None, Sigma)
 
 
 #######################################################################################
@@ -250,10 +268,11 @@ if __name__ == "__main__":
 
     # 读收益率数据
     df_rtn = pd.read_csv('rtn.csv', index_col=0)
+    
 
     # 收益率和协方差的预测
-    rtn_p = df_rtn.rolling(20).mean().shift(1)
-    cov_p = df_rtn.rolling(20).cov().shift(1)
+    rtn_p = df_rtn.shift(1).rolling(20).mean()
+    cov_p = df_rtn.shift(1).rolling(20).cov()
 
     # 转换为list
     l_month = rtn_p.dropna().index.tolist()
@@ -269,6 +288,11 @@ if __name__ == "__main__":
     l_weights = weights_solver("max_sharpe", l_r, l_Sigma)
     
     # 回测净值
-    df_pos = pd.DataFrame(l_weights, index=df_rtn.index[20:], columns=df_rtn.columns)
+    df_pos = pd.DataFrame(l_weights, rtn_p.dropna().index, columns=df_rtn.columns)
     sr_value = pos2value(df_rtn, df_pos, 20)
     sr_value.plot()
+
+for i in range(500, 800):
+    r, Sigma = l_r[i], l_Sigma[i]
+    max_sharpe(r, Sigma)
+    print(i, i, i, i, i)
