@@ -4,3 +4,4 @@ __pycache__
 *.md
 *.pkl
 *.csv
+*.ipynb
