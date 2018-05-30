@@ -1,25 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-投资组合优化函数
-如果资产数目为n，则
-
-Parameters
-----------
-r : array of shape (n)
-    收益向量
-sigma : array of shape (n)
-    方差向量
-Sigma : array of shape (n, n)
-    协方差矩阵
-Rho: array of shape (n, n)
-    相关系数矩阵   
-
-Returns
--------
-w* : array of shape (n)
-    最优权重向量  
-"""
-
 
 import numpy as np
 import pandas as pd
@@ -36,7 +15,7 @@ def optimize(func, func_deriv, *args):
              'fun': lambda x: np.array(x.sum() - 1.0),
              'jac': lambda x: np.ones(N)})
     res = minimize(func, [1.0/N]*N, args=args, jac=func_deriv, constraints=cons, bounds=[(0, 1)] * N,
-                   method='SLSQP', tol=1e-16, options={'disp': 1, 'maxiter': 100})
+                   method='SLSQP', tol=1e-16, options={'ftol':1e-8,'disp': 1, 'maxiter': 100})
 
     return res.x
 
@@ -50,13 +29,13 @@ def max_sharpe(r, Sigma):
     ----------
     r : array of shape (n)
         收益向量
-    Sigma : array of shape (n)
+    Sigma : array of shape (n, n)
         协方差矩阵 
 
     Returns
     -------
     w* : array of shape (n)
-        最优权重向量   
+        最优权重向量
     '''
 
     def func(x, r, Sigma, sign=-1.0):
@@ -66,7 +45,7 @@ def max_sharpe(r, Sigma):
 
     def func_deriv(x, r, Sigma, sign=-1.0):
         s = x.dot(Sigma).dot(x)
-        res = (r * s ** 0.5 - x.dot(r) * Sigma.dot(x) / s ** 0.5) / s
+        res = (r * s - x.dot(r) * Sigma.dot(x)) / s ** 1.5
         return res * sign
 
     return optimize(func, func_deriv, r, Sigma)
@@ -77,7 +56,7 @@ def min_vol(Sigma):
 
     Parameters
     ----------
-    Sigma : array of shape (n)
+    Sigma : array of shape (n, n)
         协方差矩阵
 
 
@@ -90,24 +69,28 @@ def min_vol(Sigma):
     def func(x, Sigma, sign=1.0):
         res = (x.dot(Sigma).dot(x)) ** 0.5
         return res * sign
+    
+    def func_deriv(x, Sigma, sign=1.0):
+        res = Sigma.dot(x) / (x.dot(Sigma).dot(x)) ** 0.5
+        return res * sign
+    
+    return optimize(func, func_deriv, Sigma)
 
-    return optimize(func, None, Sigma)
 
-
-def vol_parity(sigma):
+def vol_parity(Sigma):
     ''' 波动率平价    
 
     Parameters
     ----------
-    sigma : array of shape (n)
-        方差向量
+    Sigma : array of shape (n, n)
+        协方差矩阵
 
     Returns
     -------
     w* : array of shape (n)
         最优权重向量   
     '''
-
+    sigma = Sigma.diagonal()
     return (1.0 / sigma) / (1.0 / sigma).sum()
 
 
@@ -177,7 +160,7 @@ def most_decorr(Rho):
     def func(x, Rho, sign=1.0):
         res = x.dot(Rho).dot(x)
         return res * sign
-    
+
     def func_deriv(x, Rho, sign=1.0):
         res = 2 * Rho.dot(x)
         return res * sign
@@ -251,7 +234,7 @@ def weights_solver(method, *args):
 #######################################################################################
 
 def pos2value(df_rtn, df_pos, h):
-    #assert (df_pos >= 0).all().all(), "negtive weight"
+    # h为持仓天数
     df_pos = df_pos.dropna().iloc[::h, :]
     df_pos = df_pos.apply(lambda x: x / sum(x) if sum(x)
                           else x, raw=False, axis=1)
@@ -263,30 +246,36 @@ def pos2value(df_rtn, df_pos, h):
 
     return sr_value
 
+
 # Demo
 if __name__ == "__main__":
 
     # 读收益率数据
-    df_rtn = pd.read_csv('rtn.csv', index_col=0)
-    
+    df_rtn = pd.read_csv('rtn.csv', index_col=0, parse_dates=[0])
+
     # 收益率和协方差的预测
     rtn_p = df_rtn.shift(1).rolling(20).mean()
+    rho_p = df_rtn.shift(1).rolling(20).corr()
     cov_p = df_rtn.shift(1).rolling(20).cov()
 
     # 转换为list
     l_month = rtn_p.dropna().index.tolist()
     l_r = []
+    l_Rho = []
     l_Sigma = []
     for m in l_month:
-        u = np.array(rtn_p.loc[m])
+        r = np.array(rtn_p.loc[m])
+        Rho = np.array(rho_p.loc[m])
         Sigma = np.array(cov_p.loc[m])
-        l_r.append(u)
+        l_r.append(r)
+        l_Rho.append(Rho)
         l_Sigma.append(Sigma)
-
-    # 用最大夏普比优化
-    l_weights = weights_solver("max_sharpe", l_r, l_Sigma)
     
+    # 用最大夏普比优化
+    l_weights = weights_solver("vol_parity", l_Sigma)
+
     # 回测净值
-    df_pos = pd.DataFrame(l_weights, rtn_p.dropna().index, columns=df_rtn.columns)
+    df_pos = pd.DataFrame(l_weights, rtn_p.dropna().index,
+                          columns=df_rtn.columns)
     sr_value = pos2value(df_rtn, df_pos, 20)
     sr_value.plot()
