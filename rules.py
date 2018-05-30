@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import numpy as np
 from scipy.stats import norm
 
 
@@ -27,9 +28,9 @@ def stop_loss(sr_ret, r_stop_loss, r_re_entry):
     sr_pos = sr_ret.copy()
     sr_pos[0] = 0
     for i in range(1, len(sr_ret)):
-        sr_pos[i] = strategy(sr_pos[i-1], sr_ret[i])
+        sr_pos[i] = strategy(sr_pos[i-1], sr_ret[i-1])
 
-    return sr_pos.shift(1)
+    return sr_pos
 
 
 def target_vol(sr_sigma, tar_sigma, MaxExp, tol_change):
@@ -49,10 +50,10 @@ def target_vol(sr_sigma, tar_sigma, MaxExp, tol_change):
     """
     def strategy(pos, sigma):
         tar_w = min(tar_sigma / sigma, MaxExp)
-            if (1 - tol_change) < (pos / tar_w) < (1 + tol_change):
-                return pos
-            else:
-                return tar_w
+        if (1 - tol_change) < (pos / tar_w) < (1 + tol_change):
+            return pos
+        else:
+            return tar_w
 
     sr_pos = sr_sigma.copy()
     sr_pos[0] = min(tar_sigma / sr_sigma[0], MaxExp)
@@ -76,7 +77,7 @@ def dd_control(sr_CVaR, tar_CVaR, MaxExp):
     -------
     sr_pos: Series, 仓位序列
     """
-    return (tar_CVaR / sr_CVaR).clip_upper(MaxExp)
+    return (tar_CVaR / sr_CVaR).clip(0, MaxExp)
 
 
 def CPPI(sr_ret_c, sr_ret_f, m, f0):
@@ -103,7 +104,7 @@ def CPPI(sr_ret_c, sr_ret_f, m, f0):
     sr_net_value = sr_ret_c.copy()
     sr_ratio_c[0] = 1 - f0
     sr_net_value[0] = 1
-    for i in range(1, len(sr_amt_c)):
+    for i in range(1, len(sr_ratio_c)):
         sr_ratio_c[i], sr_net_value[i] = net_value(
             sr_net_value[i-1], sr_ret_c[i-1], sr_ret_f[i-1])
 
@@ -134,11 +135,11 @@ def TIPP(sr_ret_c, sr_ret_f, m, alpha):
     sr_net_value = sr_ret_c.copy()
     sr_ratio_c[0] = 1 - alpha
     sr_net_value[0] = 1
-    for i in range(1, len(sr_amt_c)):
+    for i in range(1, len(sr_ratio_c)):
         sr_ratio_c[i], sr_net_value[i] = net_value(
             sr_net_value[i-1], sr_ret_c[i-1], sr_ret_f[i-1])
 
-    return sr_ratio
+    return sr_ratio_c
 
 
 def OBPI(sr_p_a, sr_p_b, sr_v_a, sr_v_b, t):
@@ -178,7 +179,7 @@ def VaRcover(sr_VaR, rf, p):
     sr_pos: Series, 仓位序列
     """
 
-    return 1 / (p * sr_VaR / sr_rf + 1)
+    return 1 / (p * sr_VaR / rf + 1)
 
 
 def margrabe(sr_p_a, sr_p_b, sr_v_a, sr_v_b, t):
