@@ -9,8 +9,23 @@ import numpy as np
 import pandas as pd
 
 class evaluation(object):
+    ''' 回测评价指标
+    资产种类为k, 时间期数为n, index为datetime类型
 
-    def __init__(self, df_pos, df_ret, ret_bench=None, trade_cost=0, rate_riskfree=0):
+    Parameters
+    ----------
+    df_pos : DataFrame of shape(n, k), 仓位
+    df_ret : DataFrame of shape(n, k), 收益率
+    ret_bench: Series of shape(n), 基准收益率
+    trade_cost: float, 交易成本
+    rate_riskfree: float, 无风险收益率
+    
+    Returns
+    -------
+    评价指标
+    '''
+
+    def __init__(self, df_pos, df_ret, ret_bench=None, trade_cost=0, rate_riskfree=0.04):
         self.pos = df_pos
         self.ret = df_ret
         self.tc = trade_cost
@@ -26,7 +41,7 @@ class evaluation(object):
     def _ret_p(self):
         ret = (self.pos * self.ret).sum(axis=1)
         return ret
-
+    
     def _net_value(self):
         sr_turnover = self.pos.diff(1).abs().sum(axis=1) / 2.0
         return (1 + self.ret_p - sr_turnover * self.tc).cumprod().dropna()
@@ -107,12 +122,12 @@ class evaluation(object):
     def ExCAGR_Bull_Bear(self, sr_state):
         sr_state.name = "state"
         tmp = pd.concat([self.ret_p, sr_state], axis=1)
-        return (tmp.groupby(by="state").agg(np.mean) - self.rrf).apply(self._ret_annual)
+        return (tmp.groupby(by="state").agg(np.mean).apply(self._ret_annual) - self.rrf)
 
     def ExCAGR_Factor(self, sr_factor):
         sr_factor.name = "factor"
         tmp = pd.concat([self.ret_p, sr_factor], axis=1)
-        return (tmp.groupby(by="factor").agg(np.mean) - self.rrf).apply(self._ret_annual)
+        return (tmp.groupby(by="factor").agg(np.mean).apply(self._ret_annual) - self.rrf)
 
     def Stdev(self):
         return self._vol_annual(self.ret_p.std())
@@ -132,13 +147,13 @@ class evaluation(object):
         return D_stdev
 
     def Skew(self):
-        return self.ret_p.skew()
+        return self.ret_p.apply(lambda x: self._ret_annual(x)).skew()
 
     def Kurt(self):
-        return self.ret_p.kurt()
+        return self.ret_p.apply(lambda x: self._ret_annual(x)).kurt()
 
     def VaR(self, q=0.05):
-        return -1 * self.ret_p.apply(self._ret_annual).quantile(q)
+        return self.ret_p.apply(lambda x: self._ret_annual(x)).quantile(q)
 
     def DD(self):
         return self.net_value.expanding().apply(lambda x: 1 - x[-1] / x.max())
@@ -190,7 +205,7 @@ class evaluation(object):
 
     def DSR(self):
         SR_roll = (self.ret_p.rolling(int(250 / self.delta_days)).mean() -
-                   self.rrf) / self.ret_p.rolling(int(250 / self.delta_days)).std()
+                   self.rrf / 250) / self.ret_p.rolling(int(250 / self.delta_days)).std()
         return SR_roll.mean() / SR_roll.std()
 
     def Treynor(self):
@@ -202,16 +217,16 @@ class evaluation(object):
     def Sortino(self, MAR=0):
         D_ret_p = self.ret_p[self.ret_p < MAR]
         DR = self._part_Stdev(self.ret_p, D_ret_p)
-        return (self.ret_p.mean() - MAR) / DR
+        return (self.CAGR()- MAR) / DR
 
     def Calmar(self):
-        return (self.ret_p.mean() - self.rrf) / self.MaxDD()
+        return (self.CAGR() - self.rrf) / self.MaxDD()
 
     def PainRatio(self):
-        return (self.ret_p.mean() - self.rrf) / self.PainInd()
+        return (self.CAGR() - self.rrf) / self.PainInd()
 
     def RoVap(self):
-        return (self.ret_p.mean() - self.rrf) / self.VaR()
+        return (self.CAGR() - self.rrf) / self.VaR()
 
     def Hit_Rate(self):
         return np.where(self.ret_p > self.ret_bench, 1, 0).mean()
@@ -227,34 +242,42 @@ class evaluation(object):
 #######################################################################################
 
 # Demo
-from strategy_beta import weights_solver
+from betas import weights_solver
 
 if __name__ == "__main__":
-
+    
     # 读收益率数据
-    df_rtn = pd.read_csv('rtn.csv', index_col=0)
+    df_rtn = pd.read_csv('rtn.csv', index_col=0, parse_dates=[0])
 
     # 收益率和协方差的预测
-    rtn_p = df_rtn.rolling(20).mean().shift(1)
-    cov_p = df_rtn.rolling(20).cov().shift(1)
+    rtn_p = df_rtn.shift(1).rolling(20).mean()
+    rho_p = df_rtn.shift(1).rolling(20).corr()
+    cov_p = df_rtn.shift(1).rolling(20).cov()
 
     # 转换为list
     l_month = rtn_p.dropna().index.tolist()
     l_r = []
+    l_Rho = []
     l_Sigma = []
     for m in l_month:
-        u = np.array(rtn_p.loc[m])
+        r = np.array(rtn_p.loc[m])
+        Rho = np.array(rho_p.loc[m])
         Sigma = np.array(cov_p.loc[m])
-        l_r.append(u)
+        l_r.append(r)
+        l_Rho.append(Rho)
         l_Sigma.append(Sigma)
-
+    
     # 用最大夏普比优化
     l_weights = weights_solver("risk_parity", l_Sigma)
 
+    # 回测净值
+    df_pos = pd.DataFrame(l_weights, rtn_p.dropna().index,
+                          columns=df_rtn.columns)
+    
+
     # 评价指标
-    df_pos = pd.DataFrame(l_weights, columns=df_rtn.columns, index=df_rtn.index[21:])
-    E = evaluation(df_pos, df_rtn[21:])
-    E.net_value
+    E = evaluation(df_pos, df_rtn[20:])
+    E.net_value.plot()
     E.CAGR()
-    E.IR()
+    E.SR()
     # ...
