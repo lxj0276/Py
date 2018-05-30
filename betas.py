@@ -15,7 +15,7 @@ def optimize(func, func_deriv, *args):
              'fun': lambda x: np.array(x.sum() - 1.0),
              'jac': lambda x: np.ones(N)})
     res = minimize(func, [1.0/N]*N, args=args, jac=func_deriv, constraints=cons, bounds=[(0, 1)] * N,
-                   method='SLSQP', tol=1e-16, options={'ftol':1e-8,'disp': 1, 'maxiter': 100})
+                   method='SLSQP', tol=1e-16, options={'ftol':1e-8,'disp': False, 'maxiter': 100})
 
     return res.x
 
@@ -272,7 +272,7 @@ if __name__ == "__main__":
         l_Sigma.append(Sigma)
     
     # 用最大夏普比优化
-    l_weights = weights_solver("vol_parity", l_Sigma)
+    l_weights = weights_solver("risk_parity", l_Sigma)
 
     # 回测净值
     df_pos = pd.DataFrame(l_weights, rtn_p.dropna().index,
