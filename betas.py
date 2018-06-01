@@ -77,6 +77,69 @@ def min_vol(Sigma):
     return optimize(func, func_deriv, Sigma)
 
 
+def mean_variance(r, Sigma, lmd=2.5):
+    ''' 均值方差优化
+
+    Parameters
+    ----------
+    r : array of shape (n)
+        收益向量
+
+    Sigma : array of shape (n, n)
+        协方差矩阵
+
+    lmd : float
+        风险厌恶系数 
+
+    Returns
+    -------
+    w* : array of shape (n)
+        最优权重向量   
+    '''
+
+    def func(x, r, Sigma, lmd, sign=-1.0):
+        res = x.dot(r) - 0.5 * lmd * x.dot(Sigma).dot(x)
+        return res * sign
+
+    def func_deriv(x, r, Sigma, lmd, sign=-1.0):
+        res = r - lmd * Sigma.dot(x)
+        return res * sign
+    
+    return optimize(func, func_deriv, r, Sigma, lmd)
+
+
+def black_litterman(r, Sigma, lmd=2.5):
+    ''' black_litterman
+
+    Parameters
+    ----------
+    r : array of shape (n)
+        收益向量
+
+    Sigma : array of shape (n, n)
+        协方差矩阵
+
+    lmd : float
+        风险厌恶系数 
+
+    Returns
+    -------
+    w* : array of shape (n)
+        最优权重向量   
+    '''
+
+    def func(x, r, Sigma, lmd, sign=-1.0):
+        res = x.dot(r) - 0.5 * lmd * x.dot(Sigma).dot(x)
+        return res * sign
+
+    def func_deriv(x, r, Sigma, lmd, sign=-1.0):
+        res = r - lmd * Sigma.dot(x)
+        return res * sign
+    
+    return optimize(func, func_deriv, Sigma)
+
+    
+
 def vol_parity(Sigma):
     ''' 波动率平价    
 
@@ -116,6 +179,31 @@ def risk_parity(Sigma):
     return optimize(func, None, Sigma)
 
 
+def risk_budget(budget, Sigma):
+    ''' 风险预算
+
+    Parameters
+    ----------
+    Sigma : array of shape (n, n)
+        协方差矩阵
+
+    budget : array of shape (n)
+        风险预算向量
+
+    Returns
+    -------
+    w* : array of shape (n)
+        最优权重向量   
+    '''
+
+    def func(x, Sigma, sign=1.0):
+        RC = (x / budget) * Sigma.dot(x) / (x.dot(Sigma).dot(x)) ** 0.5
+        res = ((np.tile(RC, (len(RC), 1)).T - RC) ** 2).sum().sum()
+        return res * sign
+
+    return optimize(func, None, Sigma)
+
+
 def most_diversified(Sigma):
     ''' 最大分散化   
 
@@ -145,7 +233,7 @@ def most_diversified(Sigma):
 
 
 def most_decorr(Rho):
-    ''' 最大去相关系数    
+    ''' 最大去相关性   
 
     Parameters
     ----------
@@ -251,22 +339,22 @@ def pos2value(df_rtn, df_pos, h):
 if __name__ == "__main__":
 
     # 读收益率数据
-    df_rtn = pd.read_csv('rtn.csv', index_col=0, parse_dates=[0])
-
+    df_rtn = pd.read_csv('rtn.csv', index_col=0, parse_dates=[0], encoding='GBK')
+    df_rtn = df_rtn.fillna(0)
     # 收益率和协方差的预测
-    rtn_p = df_rtn.shift(1).rolling(20).mean()
-    rho_p = df_rtn.shift(1).rolling(20).corr()
-    cov_p = df_rtn.shift(1).rolling(20).cov()
+    rtn_p = df_rtn.shift(1).rolling(4).mean()
+    rho_p = df_rtn.shift(1).rolling(4).corr()
+    cov_p = df_rtn.shift(1).rolling(4).cov()
 
     # 转换为list
-    l_month = rtn_p.dropna().index.tolist()
+    l_day = rtn_p.dropna().index.tolist()
     l_r = []
     l_Rho = []
     l_Sigma = []
-    for m in l_month:
-        r = np.array(rtn_p.loc[m])
-        Rho = np.array(rho_p.loc[m])
-        Sigma = np.array(cov_p.loc[m])
+    for d in l_day:
+        r = np.array(rtn_p.loc[d])
+        Rho = np.array(rho_p.loc[d])
+        Sigma = np.array(cov_p.loc[d])
         l_r.append(r)
         l_Rho.append(Rho)
         l_Sigma.append(Sigma)
@@ -277,5 +365,5 @@ if __name__ == "__main__":
     # 回测净值
     df_pos = pd.DataFrame(l_weights, rtn_p.dropna().index,
                           columns=df_rtn.columns)
-    sr_value = pos2value(df_rtn, df_pos, 20)
+    sr_value = pos2value(df_rtn, df_pos, 4)
     sr_value.plot()
