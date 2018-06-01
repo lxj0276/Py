@@ -5,8 +5,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 plt.rcParams['font.sans-serif'] = ['SimHei']
 plt.rcParams['axes.unicode_minus'] = False
+from numpy.linalg import inv
 from scipy.optimize import minimize
-
 
 def optimize(func, func_deriv, *args):
 
@@ -107,9 +107,8 @@ def mean_variance(r, Sigma, lmd=2.5):
     
     return optimize(func, func_deriv, r, Sigma, lmd)
 
-
-def black_litterman(r, Sigma, lmd=2.5):
-    ''' black_litterman
+def mv_resample(r, Sigma, k=100):
+    ''' 均值方差优化
 
     Parameters
     ----------
@@ -119,8 +118,47 @@ def black_litterman(r, Sigma, lmd=2.5):
     Sigma : array of shape (n, n)
         协方差矩阵
 
-    lmd : float
-        风险厌恶系数 
+    k : int
+        重采样次数 
+
+    Returns
+    -------
+    w* : array of shape (n)
+        最优权重向量   
+    '''
+    np.random.seed(123)
+    wgt = np.zeros(len(r))
+    for i in range(k):
+        smp = np.random.multivariate_normal(r, Sigma, 10)
+        r_, Sigma_ = smp.mean(axis=0), np.cov(smp.T)
+        wgt += mean_variance(r_, Sigma_)
+    weight = wgt / k
+    
+    return weight
+
+
+def black_litterman(r, Sigma, w_mkt, P, Q, Omega, lmd=2.5, tau=0.5):
+    ''' Black_Litterman
+
+    Parameters
+    ----------
+    r : array of shape (n)
+        收益向量
+
+    Sigma : array of shape (n, n)
+        协方差矩阵
+
+    P : array of shape (n)
+        观点向量
+        
+    Q : array of shape (n, n)
+        观点收益率矩阵
+    
+    Omega ：array of shape (n, n)
+        观点误差矩阵
+    
+    tau : float
+        观点比例因子    
 
     Returns
     -------
@@ -128,15 +166,14 @@ def black_litterman(r, Sigma, lmd=2.5):
         最优权重向量   
     '''
 
-    def func(x, r, Sigma, lmd, sign=-1.0):
-        res = x.dot(r) - 0.5 * lmd * x.dot(Sigma).dot(x)
-        return res * sign
-
-    def func_deriv(x, r, Sigma, lmd, sign=-1.0):
-        res = r - lmd * Sigma.dot(x)
-        return res * sign
+    Pai = lmd * (Sigma.dot(w_mkt))
+    er_L = inv(inv(tau * Sigma) + P.dot(inv(Omega)).dot(P))
+    er_R = inv(tau * Sigma).dot(Pai) + P.dot(inv(Omega)).dot(Q)
+    ER = er_L.dot(er_R)
+    Nsigma = inv(inv(tau * Sigma) + P.dot(Omega).dot(P))
+    weight = mean_variance(ER, Nsigma+Sigma, lmd)
     
-    return optimize(func, func_deriv, Sigma)
+    return weight
 
     
 
