@@ -5,7 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 plt.rcParams['font.sans-serif'] = ['SimHei']
 plt.rcParams['axes.unicode_minus'] = False
-from numpy.linalg import inv
+from numpy.linalg import pinv
 from scipy.optimize import minimize
 
 def optimize(func, func_deriv, *args):
@@ -167,10 +167,10 @@ def black_litterman(r, Sigma, w_mkt, P, Q, Omega, lmd=2.5, tau=0.5):
     '''
 
     Pai = lmd * (Sigma.dot(w_mkt))
-    er_L = inv(inv(tau * Sigma) + P.dot(inv(Omega)).dot(P))
-    er_R = inv(tau * Sigma).dot(Pai) + P.dot(inv(Omega)).dot(Q)
+    er_L = pinv(pinv(tau * Sigma) + P.dot(pinv(Omega)).dot(P))
+    er_R = pinv(tau * Sigma).dot(Pai) + P.dot(pinv(Omega)).dot(Q)
     ER = er_L.dot(er_R)
-    Nsigma = inv(inv(tau * Sigma) + P.dot(Omega).dot(P))
+    Nsigma = pinv(pinv(tau * Sigma) + P.dot(Omega).dot(P))
     weight = mean_variance(ER, Nsigma+Sigma, lmd)
     
     return weight
