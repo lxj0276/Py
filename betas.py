@@ -107,7 +107,7 @@ def mean_variance(r, Sigma, lmd=2.5):
     
     return optimize(func, func_deriv, r, Sigma, lmd)
 
-def mv_resample(r, Sigma, k=100):
+def mv_resample(r, Sigma, k=10):
     ''' 均值方差优化
 
     Parameters
@@ -369,7 +369,7 @@ def pos2value(df_rtn, df_pos, h):
     sr_rtn = (df_rtn * df_pos).dropna().sum(axis=1)
     sr_value = (1 + sr_rtn).cumprod()
 
-    return sr_value
+    return df_pos, sr_value
 
 
 # Demo
