@@ -225,7 +225,7 @@ class evaluation(object):
     def PainRatio(self):
         return (self.CAGR() - self.rrf) / self.PainInd()
 
-    def RoVap(self):
+    def RoVaR(self):
         return (self.CAGR() - self.rrf) / self.VaR()
 
     def Hit_Rate(self):
