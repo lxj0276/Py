@@ -8,13 +8,14 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from betas import *
+from Evaluation import evaluation
 
 df_rtn = pd.read_csv('rtn.csv', index_col=0, parse_dates=[0], encoding='GBK')
 df_rtn = df_rtn.fillna(0)
 # 收益率和协方差的预测
-rtn_p = df_rtn.shift(1).rolling(24).mean()
-rho_p = df_rtn.shift(1).rolling(24).corr()
-cov_p = df_rtn.shift(1).rolling(24).cov()
+rtn_p = df_rtn.shift(1).rolling(4).mean()
+rho_p = df_rtn.shift(1).rolling(4).corr()
+cov_p = df_rtn.shift(1).rolling(4).cov()
 
 # 转换为list
 l_day = rtn_p.dropna().index.tolist()
@@ -29,20 +30,33 @@ for d in l_day:
     l_Rho.append(Rho)
     l_Sigma.append(Sigma)
 
+# 仓位、净值
+def solver(func_name, *args):
+    l_weights = weights_solver(func_name, *args)
+    df_wgt = pd.DataFrame(l_weights, rtn_p.dropna().index,
+                      columns=df_rtn.columns)
+    df_pos, sr_value = pos2value(df_rtn, df_wgt, 4)
+    sr_value.plot()
+    return df_pos, sr_value
+# 风险贡献
+def risk_contribution(df_pos):
+    df_rc = df_pos.copy()
+    for idx, w in df_pos.iterrows():
+        v = w.values
+        Sigma = cov_p.loc[idx]
+        rc = v * (v.dot(Sigma)) / (v.dot(Sigma).dot(v)) ** 0.5
+        df_rc.loc[idx] = rc
+    return df_rc
+
+
 # 等权重模型
 pos_ew = df_rtn.copy()
 pos_ew.iloc[:, :] = 1 / pos_ew.shape[1]
 value_ew = (df_rtn.mean(axis=1) + 1).cumprod()
 value_ew.plot()
-# 其他模型
-def solver(func_name, *args):
-    l_weights = weights_solver(func_name, *args)
-    df_pos = pd.DataFrame(l_weights, rtn_p.dropna().index,
-                      columns=df_rtn.columns)
-    sr_value = pos2value(df_rtn, df_pos, 4)
-    sr_value.plot()
-    return df_pos, sr_value
 
+
+# 其他模型
 ## 最小波动率
 pos_mv, value_mv = solver('min_vol', l_Sigma)
 
@@ -76,9 +90,9 @@ pos_smp, value_smp = solver('mv_resample', l_r, l_Sigma)
 df_rtn = pd.read_csv('rtn.csv', index_col=0, parse_dates=[0], encoding='GBK')
 df_rtn = df_rtn.dropna()
 # 收益率和协方差的预测
-rtn_p = df_rtn.shift(1).rolling(24).mean()
-rtn_sum = df_rtn.shift(1).rolling(24).sum()
-cov_p = df_rtn.shift(1).rolling(24).cov()
+rtn_p = df_rtn.shift(1).rolling(4).mean()
+rtn_sum = df_rtn.shift(1).rolling(4).sum()
+cov_p = df_rtn.shift(1).rolling(4).cov()
 # 转换为list
 l_day = rtn_p.dropna().index.tolist()
 l_w_mkt = [np.ones(df_rtn.shape[1]) / df_rtn.shape[1]] * len(l_day)
@@ -96,16 +110,28 @@ for d in l_day:
     l_Q.append(q)
     l_Sigma.append(Sigma)
 
-pos_bl, value_bl = solver('black_litterman', l_r[60:], l_Sigma[60:], l_w_mkt[60:], l_P[60:], l_Q[60:], l_Omega[60:])
+pos_bl, value_bl = solver('black_litterman', l_r, l_Sigma, l_w_mkt, l_P, l_Q, l_Omega)
 
 
-def black_litterman(r, Sigma, w_mkt, P, Q, Omega, lmd=2.5, tau=0.5):
+## 图
+value_list = [value_ew, value_mv, value_emv, value_rp, value_rb, value_md, value_decorr, value_msr, value_mvo, value_smp, value_bl]
+pos_list = [pos_ew, pos_mv, pos_emv, pos_rp, pos_rb, pos_md, pos_decorr, pos_msr, pos_mvo, pos_smp, pos_bl]
 
-    Pai = lmd * (Sigma.dot(w_mkt))
-    er_L = inv(inv(tau * Sigma) + P.dot(inv(Omega)).dot(P))
-    er_R = inv(tau * Sigma).dot(Pai) + P.dot(inv(Omega)).dot(Q)
-    ER = er_L.dot(er_R)
-    Nsigma = inv(inv(tau * Sigma) + P.dot(Omega).dot(P))
-    weight = mean_variance(ER, Nsigma+Sigma, lmd)
-    print(r)
-    return weight
+## 净值
+plt.figure(dpi=300)
+for value in value_list:
+    plt.plot(value)
+plt.legend(['EW', 'MV', 'EMV', 'RP', 'RB', 'MD', 'DeCorr', 'MSR', 'MVO', 'SMP', 'BL'])
+## 评价指标
+for pos in pos_list:
+    E = evaluation(pos, df_rtn)
+    print(E.CAGR(), E.Ret_Roll_1Y()[0], E.Ret_Roll_3Y()[1], E.Stdev(), E.MaxDD(), E.MaxDD_Dur(), 
+          E.VaR(), E.SR(), E.Calmar(), E.RoVaR(), E.Hit_Rate(), E.Gain2Pain(), sep=',')
+
+#面积图、箱线图
+pos_rp.plot.area()
+pos_rp.plot.box(rot=60)
+#风险贡献
+plt.stackplot(df_rc.index, df_rc.values.T)
+
+
