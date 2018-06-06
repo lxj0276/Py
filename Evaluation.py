@@ -220,7 +220,7 @@ class evaluation(object):
         return (self.CAGR()- MAR) / DR
 
     def Calmar(self):
-        return (self.CAGR() - self.rrf) / self.MaxDD()
+        return (self.CAGR() - self.rrf) / self.MaxDD() * -1
 
     def PainRatio(self):
         return (self.CAGR() - self.rrf) / self.PainInd()
