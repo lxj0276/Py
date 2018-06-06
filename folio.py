@@ -126,10 +126,10 @@ for value in value_list:
 plt.legend(['EW', 'MV', 'EMV', 'RP', 'RB', 'MD', 'DeCorr', 'MSR', 'MVO', 'ReSmp'])
 ## 评价指标
 for pos in pos_list:
-    E = evaluation(pos, df_rtn)
+    E = evaluation(pos.dropna(), df_rtn['2009':])
     print(E.YearRet())
 for pos in pos_list:
-    E = evaluation(pos, df_rtn)
+    E = evaluation(pos.dropna(), df_rtn['2009':])
     print('####\n', E.CAGR(), E.Ret_Roll_1Y()[0], E.Ret_Roll_3Y()[0], E.Stdev(), E.Skew(), E.MaxDD(), E.MaxDD_Dur(), 
           E.VaR(), E.SR(), E.Calmar(), E.RoVaR(), E.Hit_Rate(), E.Gain2Pain(), sep='\n')
 
@@ -138,15 +138,49 @@ for pos in pos_list:
     pos.plot.area()
     pos.plot.box(rot=60)
     
-pos_ew.plot.area()
-pos_ew.plot.box(rot=60)
+
 #风险贡献
 for pos in pos_list:
     i = 0 
     
     pos = pos_list[i]
-    df_rc = risk_contribution(pos)
+    df_rc = risk_contribution(pos.dropna())
     plt.stackplot(df_rc.index, df_rc.values.T)
+    plt.legend(df_rc.columns)
+    df_rc.plot.box(rot=60)
     i = i + 1
  
 
+# 止损类策略
+from rule import *
+# 原始
+df_value = (df_rtn + 1).cumprod()
+df_value.plot()
+#
+df_value = (df_pos * df_rtn + 1).cumprod()
+df_value.plot()
+# 止损
+df_pos = df_rtn.apply(lambda x: stop_loss(x, -0.05, 0.01))
+
+# 目标波动率
+df_sigma = df_rtn.rolling(102).std() * (50) ** 0.5     #年化波动率
+df_pos = df_sigma.apply(lambda x: target_vol(x, 0.10, 1.0, 0.10))
+
+# 回撤控制
+df_CVaR = df_rtn.rolling(102).apply(lambda x: np.sort(x)[:int(102 * 0.05)].mean() * (50) ** 0.5)
+df_pos = df_CVaR.apply(lambda x: dd_control(x, -0.05, 1.0))
+
+## CPPI
+df_pos = df_rtn.apply(lambda x: CPPI(x, 10, 0.5))
+
+## TIPP
+df_pos = df_rtn.apply(lambda x: TIPP(x, 10, 0.5))
+
+## OBPI
+pass
+
+## VaR套补
+pass
+
+## margrabe资产交换
+pass
