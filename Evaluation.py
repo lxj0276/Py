@@ -156,10 +156,10 @@ class evaluation(object):
         return self.ret_p.apply(lambda x: self._ret_annual(x)).quantile(q)
 
     def DD(self):
-        return self.net_value.expanding().apply(lambda x: 1 - x[-1] / x.max())
+        return self.net_value.expanding().apply(lambda x: x[-1] / x.max() - 1)
 
     def MaxDD(self):
-        return self.DD().max()
+        return self.DD().min()
 
     def DD_Dur(self):
         return self.net_value.expanding().apply(lambda x: 1 if x[-1] < x.max() else np.nan)
@@ -226,7 +226,7 @@ class evaluation(object):
         return (self.CAGR() - self.rrf) / self.PainInd()
 
     def RoVaR(self):
-        return (self.CAGR() - self.rrf) / self.VaR()
+        return (self.CAGR() - self.rrf) / self.VaR() * -1
 
     def Hit_Rate(self):
         return np.where(self.ret_p > self.ret_bench, 1, 0).mean()
