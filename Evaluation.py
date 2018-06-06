@@ -90,7 +90,7 @@ class evaluation(object):
 
     def _Ret_Roll(self, Y):
         lag = int(Y * 250 / self.delta_days)
-        ret_roll = self.net_value.rolling(lag).apply(lambda x: x[-1] / x[0] ** (1.0 / Y) - 1.0)
+        ret_roll = self.net_value.rolling(lag).apply(lambda x: (x[-1] / x[0]) ** (1.0 / Y) - 1.0)
         r_mean, r_max, r_min = ret_roll.mean(), ret_roll.max(), ret_roll.min()
         return r_mean, r_max, r_min
 
