@@ -201,8 +201,8 @@ def margrabe(sr_p_a, sr_p_b, sr_sigma, t):
         d1 = (np.log(sr_p_a[i] / sr_p_b[i]) + sr_sigma[i]
               ** 2 * t / 2) / (sr_sigma[i] * t ** 0.5)
         d2 = (np.log(sr_p_a[i] / sr_p_b[i]) - sr_sigma[i]
-              ** 2 * t / 2) / (sr_sigma[i]* t ** 0.5)
-        sr_pos[i] = sr_p_a[i] / sr_p_b[i] *
+              ** 2 * t / 2) / (sr_sigma[i] * t ** 0.5)
+        sr_pos[i] = sr_p_a[i] / sr_p_b[i] * \
             norm.cdf(d1) / (sr_p_a[i] / sr_p_b[i] *
                             norm.cdf(d1) + 1 - norm.cdf(d2))
 
