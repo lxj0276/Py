@@ -13,9 +13,9 @@ from Evaluation import evaluation
 df_rtn = pd.read_csv('rtn.csv', index_col=0, parse_dates=[0], encoding='GBK')
 df_rtn = df_rtn.fillna(0)
 # 收益率和协方差的预测
-rtn_p = df_rtn.shift(1).rolling(4).mean()
-rho_p = df_rtn.shift(1).rolling(4).corr()
-cov_p = df_rtn.shift(1).rolling(4).cov()
+rtn_p = df_rtn.shift(1).rolling(102).mean()
+rho_p = df_rtn.shift(1).rolling(102).corr()
+cov_p = df_rtn.shift(1).rolling(102).cov()
 
 # 转换为list
 l_day = rtn_p.dropna().index.tolist()
@@ -35,24 +35,25 @@ def solver(func_name, *args):
     l_weights = weights_solver(func_name, *args)
     df_wgt = pd.DataFrame(l_weights, rtn_p.dropna().index,
                       columns=df_rtn.columns)
-    df_pos, sr_value = pos2value(df_rtn, df_wgt, 4)
+    df_pos, sr_value = pos2value(df_rtn, df_wgt, 1)
     sr_value.plot()
     return df_pos, sr_value
 # 风险贡献
 def risk_contribution(df_pos):
     df_rc = df_pos.copy()
+    df_Sigma = df_rtn.rolling(102).cov()
     for idx, w in df_pos.iterrows():
         v = w.values
-        Sigma = cov_p.loc[idx]
-        rc = v * (v.dot(Sigma)) / (v.dot(Sigma).dot(v)) ** 0.5
+        Sigma = df_Sigma.loc[idx]
+        rc = v * (v.dot(Sigma)) / (v.dot(Sigma).dot(v)) #** 0.5
         df_rc.loc[idx] = rc
     return df_rc
 
 
 # 等权重模型
-pos_ew = df_rtn.copy()
+pos_ew = df_rtn['2009':].copy()
 pos_ew.iloc[:, :] = 1 / pos_ew.shape[1]
-value_ew = (df_rtn.mean(axis=1) + 1).cumprod()
+value_ew = (df_rtn['2009':].mean(axis=1) + 1).cumprod()
 value_ew.plot()
 
 
@@ -84,6 +85,7 @@ pos_mvo, value_mvo = solver('mean_variance', l_r, l_Sigma)
 ## ReSample
 pos_smp, value_smp = solver('mv_resample', l_r, l_Sigma)
 
+'''
 ## Black-Litterman: 动量观点
 
 # 读取收益
@@ -111,27 +113,40 @@ for d in l_day:
     l_Sigma.append(Sigma)
 
 pos_bl, value_bl = solver('black_litterman', l_r, l_Sigma, l_w_mkt, l_P, l_Q, l_Omega)
-
+'''
 
 ## 图
-value_list = [value_ew, value_mv, value_emv, value_rp, value_rb, value_md, value_decorr, value_msr, value_mvo, value_smp, value_bl]
-pos_list = [pos_ew, pos_mv, pos_emv, pos_rp, pos_rb, pos_md, pos_decorr, pos_msr, pos_mvo, pos_smp, pos_bl]
+value_list = [value_ew, value_mv, value_emv, value_rp, value_rb, value_md, value_decorr, value_msr, value_mvo, value_smp]
+pos_list = [pos_ew, pos_mv, pos_emv, pos_rp, pos_rb, pos_md, pos_decorr, pos_msr, pos_mvo, pos_smp]
 
 ## 净值
 plt.figure(dpi=300)
 for value in value_list:
     plt.plot(value)
-plt.legend(['EW', 'MV', 'EMV', 'RP', 'RB', 'MD', 'DeCorr', 'MSR', 'MVO', 'SMP', 'BL'])
+plt.legend(['EW', 'MV', 'EMV', 'RP', 'RB', 'MD', 'DeCorr', 'MSR', 'MVO', 'ReSmp'])
 ## 评价指标
 for pos in pos_list:
     E = evaluation(pos, df_rtn)
-    print(E.CAGR(), E.Ret_Roll_1Y()[0], E.Ret_Roll_3Y()[1], E.Stdev(), E.MaxDD(), E.MaxDD_Dur(), 
-          E.VaR(), E.SR(), E.Calmar(), E.RoVaR(), E.Hit_Rate(), E.Gain2Pain(), sep=',')
+    print(E.YearRet())
+for pos in pos_list:
+    E = evaluation(pos, df_rtn)
+    print('####\n', E.CAGR(), E.Ret_Roll_1Y()[0], E.Ret_Roll_3Y()[0], E.Stdev(), E.Skew(), E.MaxDD(), E.MaxDD_Dur(), 
+          E.VaR(), E.SR(), E.Calmar(), E.RoVaR(), E.Hit_Rate(), E.Gain2Pain(), sep='\n')
 
 #面积图、箱线图
-pos_rp.plot.area()
-pos_rp.plot.box(rot=60)
+for pos in pos_list:
+    pos.plot.area()
+    pos.plot.box(rot=60)
+    
+pos_ew.plot.area()
+pos_ew.plot.box(rot=60)
 #风险贡献
-plt.stackplot(df_rc.index, df_rc.values.T)
-
+for pos in pos_list:
+    i = 0 
+    
+    pos = pos_list[i]
+    df_rc = risk_contribution(pos)
+    plt.stackplot(df_rc.index, df_rc.values.T)
+    i = i + 1
+ 
 
