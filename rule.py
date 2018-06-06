@@ -80,66 +80,64 @@ def dd_control(sr_CVaR, tar_CVaR, MaxExp):
     return (tar_CVaR / sr_CVaR).clip(0, MaxExp)
 
 
-def CPPI(sr_ret_c, sr_ret_f, m, f0):
+def CPPI(sr_ret, m, f0):
     """
     CPPI
 
     Parameters
     ----------
     sr_ret_c: Series, 风险资产收益序列
-    sr_ret_f: Series, 无风险资产收益序列
     m: 乘数
     f0: float, 无风险资产初始比例
 
     Returns
     -------
-    sr_ratio_c: Series, 风险资产仓位序列
+    sr_ratio: Series, 风险资产仓位序列
     """
 
-    def net_value(value, ret_c, ret_f):
-        ratio_c = (value - f0) * m / (f0 + (value - f0) * m)
-        return ratio_c, value * (1 + ret_c * ratio_c + ret_f * (1 - ratio_c))
+    def net_value(value, ret):
+        ratio = (value - f0) * m / (f0 + (value - f0) * m)
+        return ratio, value * (1 + ret * ratio)
 
-    sr_ratio_c = sr_ret_c.copy()
-    sr_net_value = sr_ret_c.copy()
-    sr_ratio_c[0] = 1 - f0
+    sr_ratio = sr_ret.copy()
+    sr_net_value = sr_ret.copy()
+    sr_ratio[0] = 1 - f0
     sr_net_value[0] = 1
-    for i in range(1, len(sr_ratio_c)):
-        sr_ratio_c[i], sr_net_value[i] = net_value(
-            sr_net_value[i-1], sr_ret_c[i-1], sr_ret_f[i-1])
+    for i in range(1, len(sr_ratio)):
+        sr_ratio[i], sr_net_value[i] = net_value(
+            sr_net_value[i-1], sr_ret[i-1])
 
-    return sr_ratio_c
+    return sr_ratio
 
 
-def TIPP(sr_ret_c, sr_ret_f, m, alpha):
+def TIPP(sr_ret, m, alpha):
     """
     复制型TIPP
 
     Parameters
     ----------
-    sr_ret_c: Series, 风险资产收益序列
-    sr_ret_f: Series, 无风险资产收益序列
+    sr_ret: Series, 风险资产收益序列
     m: float, 乘数
     alpha: float, 保本比例
 
     Returns
     -------
-    sr_ratio_c: Series, 风险资产仓位序列
+    sr_ratio: Series, 风险资产仓位序列
     """
-    def net_value(value, ret_c, ret_f):
-        ratio_c = value * (1 - alpha) * m / \
+    def net_value(value, ret):
+        ratio = value * (1 - alpha) * m / \
             (value * (1 - alpha) * m + value * alpha)
-        return ratio_c, value * (1 + ret_c * ratio_c + ret_f * (1 - ratio_c))
+        return ratio, value * (1 + ret * ratio)
 
-    sr_ratio_c = sr_ret_c.copy()
-    sr_net_value = sr_ret_c.copy()
-    sr_ratio_c[0] = 1 - alpha
+    sr_ratio = sr_ret.copy()
+    sr_net_value = sr_ret.copy()
+    sr_ratio[0] = 1 - alpha
     sr_net_value[0] = 1
-    for i in range(1, len(sr_ratio_c)):
-        sr_ratio_c[i], sr_net_value[i] = net_value(
-            sr_net_value[i-1], sr_ret_c[i-1], sr_ret_f[i-1])
+    for i in range(1, len(sr_ratio)):
+        sr_ratio[i], sr_net_value[i] = net_value(
+            sr_net_value[i-1], sr_ret[i-1])
 
-    return sr_ratio_c
+    return sr_ratio
 
 
 def OBPI(sr_p_a, sr_p_b, sr_sigma, t):
@@ -171,14 +169,14 @@ def VaRcover(sr_VaR, rf, p):
     ----------
     sr_VaR: Series, VaR序列
     rf: float, 无风险收益率
-    p: flota, 套补比例
+    p: float, 套补比例
 
     Returns
     -------
     sr_pos: Series, 仓位序列
     """
 
-    return 1 / (p * sr_VaR / rf + 1)
+    return 1.0 / (p * sr_VaR / rf + 1)
 
 
 def margrabe(sr_p_a, sr_p_b, sr_sigma, t):
