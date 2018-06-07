@@ -25,7 +25,7 @@ class evaluation(object):
     评价指标
     '''
 
-    def __init__(self, df_pos, df_ret, ret_bench=None, trade_cost=0, rate_riskfree=0.04):
+    def __init__(self, df_pos, df_ret, ret_bench=None, trade_cost=0, rate_riskfree=0):
         self.pos = df_pos
         self.ret = df_ret
         self.tc = trade_cost
