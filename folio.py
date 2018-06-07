@@ -13,9 +13,10 @@ from Evaluation import evaluation
 df_rtn = pd.read_csv('rtn.csv', index_col=0, parse_dates=[0], encoding='GBK')
 df_rtn = df_rtn.fillna(0)
 # 收益率和协方差的预测
-rtn_p = df_rtn.shift(1).rolling(102).mean()
-rho_p = df_rtn.shift(1).rolling(102).corr()
-cov_p = df_rtn.shift(1).rolling(102).cov()
+lag = 102
+rtn_p = df_rtn.shift(1).rolling(lag).mean().loc['2009':]
+rho_p = df_rtn.shift(1).rolling(lag).corr()
+cov_p = df_rtn.shift(1).rolling(lag).cov()
 
 # 转换为list
 l_day = rtn_p.dropna().index.tolist()
@@ -41,10 +42,9 @@ def solver(func_name, *args):
 # 风险贡献
 def risk_contribution(df_pos):
     df_rc = df_pos.copy()
-    df_Sigma = df_rtn.rolling(102).cov()
     for idx, w in df_pos.iterrows():
         v = w.values
-        Sigma = df_Sigma.loc[idx]
+        Sigma = cov_p.loc[idx]
         rc = v * (v.dot(Sigma)) / (v.dot(Sigma).dot(v)) #** 0.5
         df_rc.loc[idx] = rc
     return df_rc
@@ -80,7 +80,7 @@ pos_decorr, value_decorr = solver('most_decorr', l_Rho)
 pos_msr, value_msr = solver('max_sharpe', l_r, l_Sigma)
 
 ## 均值-方差优化
-pos_mvo, value_mvo = solver('mean_variance', l_r, l_Sigma)
+pos_mvo, value_mvo = solver('target_variance', l_r, l_Sigma)
 
 ## ReSample
 pos_smp, value_smp = solver('mv_resample', l_r, l_Sigma)
@@ -184,3 +184,5 @@ pass
 
 ## margrabe资产交换
 pass
+
+## TODO 多空组合， 分年度收益， 两个面积图不一致

@@ -15,7 +15,7 @@ def optimize(func, func_deriv, *args):
              'fun': lambda x: np.array(x.sum() - 1.0),
              'jac': lambda x: np.ones(N)})
     res = minimize(func, [1.0/N]*N, args=args, jac=func_deriv, constraints=cons, bounds=[(0, 1)] * N,
-                   method='SLSQP', tol=1e-16, options={'ftol':1e-8,'disp': False, 'maxiter': 100})
+                   method='SLSQP', tol=1e-18, options={'ftol':1e-18,'disp': False, 'maxiter': 1000})
 
     return res.x
 
@@ -142,7 +142,7 @@ def target_variance(r, Sigma, tar_sigma=0.01):
              'fun': lambda x: np.array(tar_sigma ** 2 - x.dot(Sigma).dot(x)),
              'jac': lambda x: np.array(-2 * Sigma.dot(x))})
     res = minimize(func, [1.0/N]*N, args=(r, Sigma, tar_sigma), jac=func_deriv, constraints=cons, bounds=[(0, 1)] * N,
-                   method='SLSQP', tol=1e-16, options={'ftol':1e-8,'disp': False, 'maxiter': 100})
+                   method='SLSQP', tol=1e-18, options={'ftol':1e-18,'disp': False, 'maxiter': 1000})
 
     return res.x
 
@@ -400,8 +400,7 @@ def weights_solver(method, *args):
 def pos2value(df_rtn, df_pos, h):
     # h为持仓天数
     df_pos = df_pos.dropna().iloc[::h, :]
-    df_pos = df_pos.apply(lambda x: x / sum(x) if sum(x)
-                          else x, raw=False, axis=1)
+    df_pos = df_pos.apply(lambda x: x / sum(x) if sum(x) else x, raw=False, axis=1)
     df_tmp = df_rtn.copy()
     df_tmp.iloc[:, :] = 0
     df_pos = (df_pos + df_tmp).fillna(method='ffill')
