@@ -107,7 +107,46 @@ def mean_variance(r, Sigma, lmd=2.5):
     
     return optimize(func, func_deriv, r, Sigma, lmd)
 
-def mv_resample(r, Sigma, k=10):
+
+def target_variance(r, Sigma, tar_sigma=0.01):
+    ''' 均值方差优化: 目标波动率
+
+    Parameters
+    ----------
+    r : array of shape (n)
+        收益向量
+
+    Sigma : array of shape (n, n)
+        协方差矩阵
+
+    tar_sigma : float
+        目标波动率 
+
+    Returns
+    -------
+    w* : array of shape (n)
+        最优权重向量   
+    '''
+
+    def func(x, r, Sigma, tar_sigma, sign=-1.0):
+        return x.dot(r) * sign
+
+    def func_deriv(x, r, Sigma, lmd, sign=-1.0):
+        return r * sign
+
+    N = len(Sigma)
+    cons = ({'type': 'eq',
+             'fun': lambda x: np.array(x.sum() - 1.0),
+             'jac': lambda x: np.ones(N)},
+            {'type': 'ineq',
+             'fun': lambda x: np.array(tar_sigma ** 2 - x.dot(Sigma).dot(x)),
+             'jac': lambda x: np.array(-2 * Sigma.dot(x))})
+    res = minimize(func, [1.0/N]*N, args=(r, Sigma, tar_sigma), jac=func_deriv, constraints=cons, bounds=[(0, 1)] * N,
+                   method='SLSQP', tol=1e-16, options={'ftol':1e-8,'disp': False, 'maxiter': 100})
+
+    return res.x
+
+def mv_resample(r, Sigma, k=100):
     ''' 均值方差优化
 
     Parameters
@@ -131,7 +170,7 @@ def mv_resample(r, Sigma, k=10):
     for i in range(k):
         smp = np.random.multivariate_normal(r, Sigma, 10)
         r_, Sigma_ = smp.mean(axis=0), np.cov(smp.T)
-        wgt += mean_variance(r_, Sigma_)
+        wgt += target_variance(r_, Sigma_)
     weight = wgt / k
     
     return weight
