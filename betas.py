@@ -146,7 +146,7 @@ def target_variance(r, Sigma, tar_sigma=0.01):
 
     return res.x
 
-def mv_resample(r, Sigma, k=100):
+def mv_resample(r, Sigma, k=1000):
     ''' 均值方差优化
 
     Parameters
