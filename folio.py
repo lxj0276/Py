@@ -172,32 +172,46 @@ from rule import *
 
 df_rtn = pd.read_csv('rtn.csv', index_col=0, parse_dates=[0], encoding='GBK')
 df_rtn = df_rtn.fillna(0)
-df_rtn = df_rtn.iloc[:, [0, 2, 3]]
+df_rtn = df_rtn.iloc[:, :4]
 # 原始
 df_value = (df_rtn + 1).cumprod()
 df_value.plot()
 #
 def value_plot(df_pos):
     df_value = (df_pos * df_rtn + 1).cumprod()
-    df_value.plot()
-    return 0
+    return df_value
 # 止损
-df_pos = df_rtn.apply(lambda x: stop_loss(x, -0.01, 0.01))
-value_plot(df_pos)
+df_pos = df_rtn.apply(lambda x: stop_loss(x, -0.03, 0.0))
+plt.subplot(2,1,1)
+plt.plot(df_value)
+plt.subplot(2,1,2)
+plt.plot(value_plot(df_pos))
 # 目标波动率
 df_sigma = df_rtn.rolling(102).std() * (50) ** 0.5     #年化波动率
 df_pos = df_sigma.apply(lambda x: target_vol(x, 0.1, 1.0, 1))
-value_plot(df_pos)
+plt.subplot(2,1,1)
+plt.plot(df_value)
+plt.subplot(2,1,2)
+plt.plot(value_plot(df_pos))
 # 回撤控制
 df_CVaR = df_rtn.rolling(102).apply(lambda x: np.sort(x)[:int(102 * 0.05)].mean() * (50) ** 0.5)
-df_pos = df_CVaR.apply(lambda x: dd_control(x, -0.20, 1.0))
-value_plot(df_pos)
+df_pos = df_CVaR.apply(lambda x: dd_control(x, -0.30, 1.0))
+plt.subplot(2,1,1)
+plt.plot(df_value)
+plt.subplot(2,1,2)
+plt.plot(value_plot(df_pos))
 ## CPPI
 df_pos = df_rtn.apply(lambda x: CPPI(x, 5, 0.5))
-value_plot(df_pos)
+plt.subplot(2,1,1)
+plt.plot(df_value)
+plt.subplot(2,1,2)
+plt.plot(value_plot(df_pos))
 ## TIPP
 df_pos = df_rtn.apply(lambda x: TIPP(x, 5, 0.5))
-value_plot(df_pos)
+plt.subplot(2,1,1)
+plt.plot(df_value)
+plt.subplot(2,1,2)
+plt.plot(value_plot(df_pos))
 ## OBPI
 df_price = (df_rtn + 1).cumprod()
 df_sigma = df_rtn.rolling(102).std() * (50) ** 0.5     #年化波动率
