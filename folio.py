@@ -172,7 +172,7 @@ from rule import *
 
 df_rtn = pd.read_csv('rtn.csv', index_col=0, parse_dates=[0], encoding='GBK')
 df_rtn = df_rtn.fillna(0)
-df_rtn = df_rtn.iloc[:, :4]
+df_rtn_1 = df_rtn.iloc[:, :2]
 # 原始
 df_value = (df_rtn + 1).cumprod()
 df_value.plot()
@@ -181,11 +181,14 @@ def value_plot(df_pos):
     df_value = (df_pos * df_rtn + 1).cumprod()
     return df_value
 # 止损
-df_pos = df_rtn.apply(lambda x: stop_loss(x, -0.03, 0.0))
+df_pos = df_rtn_1.apply(lambda x: stop_loss(x, -0.03, 0.0))
 plt.subplot(2,1,1)
 plt.plot(df_value)
 plt.subplot(2,1,2)
 plt.plot(value_plot(df_pos))
+
+# 
+df_rtn.iloc[:, :2] = df_pos * df_rtn_1
 # 目标波动率
 df_sigma = df_rtn.rolling(102).std() * (50) ** 0.5     #年化波动率
 df_pos = df_sigma.apply(lambda x: target_vol(x, 0.1, 1.0, 1))
@@ -224,3 +227,9 @@ value_plot(pos)
 df_price = (df_rtn + 1).cumprod()
 df_sigma = df_rtn.rolling(102).std() * (50) ** 0.5     #年化波动率
 
+## 改对组合进行止损增
+sr_rtn = value_ew.pct_change(1).fillna(0)
+sr_pos = stop_loss(sr_rtn, -0.01, 0.0)
+(sr_pos * sr_rtn + 1).cumprod().plot()
+value_ew.plot()
+    
