@@ -7,8 +7,11 @@ Created on Fri Jun  1 13:23:15 2018
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+plt.style.use('ggplot')
 from betas import *
 from Evaluation import evaluation
+import seaborn as sns
+sns.set(font='SimHei', style='ticks')
 
 df_rtn = pd.read_csv('rtn.csv', index_col=0, parse_dates=[0], encoding='GBK')
 df_rtn = df_rtn.fillna(0)
@@ -68,6 +71,13 @@ pos_emv, value_emv = solver('vol_parity', l_Sigma)
 pos_rp, value_rp = solver('risk_parity', l_Sigma)
 
 ## 风险预算
+'''
+df_mom = df_rtn.shift(1).rolling(4).sum()
+l_mom = []
+for d in l_day:
+    mom = np.array(df_mom.loc[d])
+    l_mom.append(mom)
+'''   
 pos_rb, value_rb = solver('risk_budget', l_r, l_Sigma)
 
 ## 最大分散化
@@ -118,71 +128,85 @@ pos_bl, value_bl = solver('black_litterman', l_r, l_Sigma, l_w_mkt, l_P, l_Q, l_
 ## 图
 value_list = [value_ew, value_mv, value_emv, value_rp, value_rb, value_md, value_decorr, value_msr, value_mvo, value_smp]
 pos_list = [pos_ew, pos_mv, pos_emv, pos_rp, pos_rb, pos_md, pos_decorr, pos_msr, pos_mvo, pos_smp]
-
+name_list = ['EW', 'MV', 'EMV', 'RP', 'RB', 'MD', 'DeCorr', 'MSR', 'MVO', 'ReSmp']
 ## 净值
 plt.figure(dpi=300)
 for value in value_list:
     plt.plot(value)
-plt.legend(['EW', 'MV', 'EMV', 'RP', 'RB', 'MD', 'DeCorr', 'MSR', 'MVO', 'ReSmp'])
+plt.legend(name_list)
 ## 评价指标
 for pos in pos_list:
     E = evaluation(pos.dropna(), df_rtn['2009':])
     print(E.YearRet())
 for pos in pos_list:
     E = evaluation(pos.dropna(), df_rtn['2009':])
-    print('####\n', E.CAGR(), E.Ret_Roll_1Y()[0], E.Ret_Roll_3Y()[0], E.Stdev(), E.Skew(), E.MaxDD(), E.MaxDD_Dur(), 
+    print('####', E.CAGR(), E.Ret_Roll_1Y()[0], E.Ret_Roll_3Y()[0], E.Stdev(), E.Skew(), E.MaxDD(), E.MaxDD_Dur(), 
           E.VaR(), E.SR(), E.Calmar(), E.RoVaR(), E.Hit_Rate(), E.Gain2Pain(), sep='\n')
 
 #面积图、箱线图
+plt.ioff() # plt.ion()
 for pos in pos_list:
-    pos.plot.area()
+    plt.stackplot(pos.index, pos.values.T)
+    plt.legend(pos.columns, bbox_to_anchor=(1, 0.5), loc=6)
+    plt.show()
+    
+for pos in pos_list:
     pos.plot.box(rot=60)
-    
-
+    #sns.boxplot(data=pos)
 #风险贡献
+plt.ioff()
 for pos in pos_list:
-    i = 0 
-    
-    pos = pos_list[i]
     df_rc = risk_contribution(pos.dropna())
     plt.stackplot(df_rc.index, df_rc.values.T)
-    plt.legend(df_rc.columns)
+    plt.legend(pos.columns, bbox_to_anchor=(1, 0.5), loc=6)
+    plt.show()
+
+for pos in pos_list:
+    df_rc = risk_contribution(pos.dropna())
     df_rc.plot.box(rot=60)
-    i = i + 1
  
 
 # 止损类策略
 from rule import *
+#只做股票
+
+df_rtn = pd.read_csv('rtn.csv', index_col=0, parse_dates=[0], encoding='GBK')
+df_rtn = df_rtn.fillna(0)
+df_rtn = df_rtn.iloc[:, [0, 2, 3]]
 # 原始
 df_value = (df_rtn + 1).cumprod()
 df_value.plot()
 #
-df_value = (df_pos * df_rtn + 1).cumprod()
-df_value.plot()
+def value_plot(df_pos):
+    df_value = (df_pos * df_rtn + 1).cumprod()
+    df_value.plot()
+    return 0
 # 止损
-df_pos = df_rtn.apply(lambda x: stop_loss(x, -0.05, 0.01))
-
+df_pos = df_rtn.apply(lambda x: stop_loss(x, -0.01, 0.01))
+value_plot(df_pos)
 # 目标波动率
 df_sigma = df_rtn.rolling(102).std() * (50) ** 0.5     #年化波动率
-df_pos = df_sigma.apply(lambda x: target_vol(x, 0.10, 1.0, 0.10))
-
+df_pos = df_sigma.apply(lambda x: target_vol(x, 0.1, 1.0, 1))
+value_plot(df_pos)
 # 回撤控制
 df_CVaR = df_rtn.rolling(102).apply(lambda x: np.sort(x)[:int(102 * 0.05)].mean() * (50) ** 0.5)
-df_pos = df_CVaR.apply(lambda x: dd_control(x, -0.05, 1.0))
-
+df_pos = df_CVaR.apply(lambda x: dd_control(x, -0.20, 1.0))
+value_plot(df_pos)
 ## CPPI
-df_pos = df_rtn.apply(lambda x: CPPI(x, 10, 0.5))
-
+df_pos = df_rtn.apply(lambda x: CPPI(x, 5, 0.5))
+value_plot(df_pos)
 ## TIPP
-df_pos = df_rtn.apply(lambda x: TIPP(x, 10, 0.5))
-
+df_pos = df_rtn.apply(lambda x: TIPP(x, 5, 0.5))
+value_plot(df_pos)
 ## OBPI
-pass
-
+df_price = (df_rtn + 1).cumprod()
+df_sigma = df_rtn.rolling(102).std() * (50) ** 0.5     #年化波动率
+pos = [OBPI(df_price.iloc[:, i], df_sigma.iloc[:, i], 0.02) for i in range(df_price.shape[1])]
 ## VaR套补
-pass
-
+df_VaR = df_rtn.rolling(102).apply(lambda x: np.sort(x)[int(102 * 0.05)] * (50) ** 0.5)
+pos = df_VaR.apply(lambda x: VaRcover(-x, 0.04, 0.5))
+value_plot(pos)
 ## margrabe资产交换
-pass
+df_price = (df_rtn + 1).cumprod()
+df_sigma = df_rtn.rolling(102).std() * (50) ** 0.5     #年化波动率
 
-## TODO 多空组合， 分年度收益， 两个面积图不一致
