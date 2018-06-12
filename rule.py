@@ -33,6 +33,37 @@ def stop_loss(sr_ret, r_stop_loss, r_re_entry):
     return sr_pos
 
 
+def stop_loss_dynamic(sr_ret, q_stop_loss, q_re_entry):
+    """
+    止损
+
+    Parameters
+    ----------
+    sr_ret: Series, 收益率序列
+    r_stop_loss: float, 止损线
+    r_re_entry: float, 入场线
+
+    Returns
+    -------
+    sr_pos: Series, 仓位序列
+    """
+    def strategy(pos, ret, r_stop_loss, r_re_entry):
+        if ret > r_re_entry:
+            return 1
+        elif r_stop_loss <= ret <= r_re_entry:
+            return pos
+        else:
+            return 0
+
+    sr_pos = sr_ret.copy()
+    sr_pos[0] = 0
+    for i in range(1, len(sr_ret)):
+        r_stop_loss = sr_ret[:i].quantile(q_stop_loss)
+        r_re_entry = sr_ret[:i].quantile(q_re_entry)
+        sr_pos[i] = strategy(sr_pos[i-1], sr_ret[i-1], r_stop_loss, r_re_entry)
+
+    return sr_pos
+
 def target_vol(sr_sigma, tar_sigma, MaxExp, tol_change):
     """
     目标波动率
@@ -125,6 +156,7 @@ def TIPP(sr_ret, m, alpha):
     sr_ratio: Series, 风险资产仓位序列
     """
     def net_value(value, ret):
+        value = max(value, alpha)    ## alpha也是最低保本额度
         ratio = value * (1 - alpha) * m / \
             (value * (1 - alpha) * m + value * alpha)
         return ratio, value * (1 + ret * ratio)
@@ -140,14 +172,13 @@ def TIPP(sr_ret, m, alpha):
     return sr_ratio
 
 
-def OBPI(sr_p_a, sr_p_b, sr_sigma, t):
+def OBPI(sr_p, sr_sigma, t):
     """
     复制型OBPI
 
     Parameters
     ----------
-    sr_p_a: Series, a资产价格序列
-    sr_p_b: Series, b资产价格序列
+    sr_p: Series, 资产价格序列
     sr_sigma: Series, 资产波动率序列
     t: float, 时间
 
@@ -155,7 +186,7 @@ def OBPI(sr_p_a, sr_p_b, sr_sigma, t):
     -------
     sr_pos: Series, 仓位序列
     """
-    sr_d1 = (np.log(sr_p_a / sr_p_b) + sr_sigma **
+    sr_d1 = (np.log(sr_p) + sr_sigma **
              2 * t / 2) / (sr_sigma * t ** 0.5)
 
     return sr_d1.apply(lambda d1: norm.cdf(d1))
@@ -179,14 +210,13 @@ def VaRcover(sr_VaR, rf, p):
     return 1.0 / (p * sr_VaR / rf + 1)
 
 
-def margrabe(sr_p_a, sr_p_b, sr_sigma, t):
+def margrabe(sr_p, sr_sigma, t):
     """
     margrabe资产交换
 
     Parameters
     ----------
-    sr_p_a: Series, a资产价格序列
-    sr_p_b: Series, b资产价格序列
+    sr_p: Series, 资产价格序列
     sr_sigma: Series, 资产波动率序列
     t: float, 时间
 
@@ -194,14 +224,14 @@ def margrabe(sr_p_a, sr_p_b, sr_sigma, t):
     -------
     sr_pos: Series, a资产仓位序列
     """
-    sr_pos = sr_p_a.copy()
-    for i in range(len(sr_p_a)):
-        d1 = (np.log(sr_p_a[i] / sr_p_b[i]) + sr_sigma[i]
+    sr_pos = sr_p.copy()
+    for i in range(len(sr_p)):
+        d1 = (np.log(sr_p[i]) + sr_sigma[i]
               ** 2 * t / 2) / (sr_sigma[i] * t ** 0.5)
-        d2 = (np.log(sr_p_a[i] / sr_p_b[i]) - sr_sigma[i]
+        d2 = (np.log(sr_p[i]) - sr_sigma[i]
               ** 2 * t / 2) / (sr_sigma[i] * t ** 0.5)
-        sr_pos[i] = sr_p_a[i] / sr_p_b[i] * \
-            norm.cdf(d1) / (sr_p_a[i] / sr_p_b[i] *
+        sr_pos[i] = sr_p[i] * \
+            norm.cdf(d1) / (sr_p[i] *
                             norm.cdf(d1) + 1 - norm.cdf(d2))
 
     return sr_pos
