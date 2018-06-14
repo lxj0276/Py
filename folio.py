@@ -11,7 +11,17 @@ plt.style.use('ggplot')
 from betas import *
 from Evaluation import evaluation
 import seaborn as sns
-sns.set(font='SimHei', style='ticks')
+sns.set()
+
+sns.set(font='SimHei', style='ticks', font_scale=1.5, 
+        palette=sns.color_palette('Paired', n_colors=10, desat=0.8))
+plt.stackplot(pos.index, pos.values.T)
+
+flatui = ["#a6cee3", "#1f78b4", "#b2df8a", "#33a02c", "#fb9a99", "#e31a1c", 
+          "#fdbf6f", "#ff7f00", "#cab2d6", "#6a3d9a", "#e6daa6", "#b15928",
+          "#34495e", "#95a5a6"]
+sns.set(font='SimHei', style='ticks', font_scale=1.5, 
+        palette=sns.color_palette(flatui, n_colors=13, desat=0.8))
 
 df_rtn = pd.read_csv('rtn.csv', index_col=0, parse_dates=[0], encoding='GBK')
 df_rtn = df_rtn.fillna(0)
@@ -46,7 +56,7 @@ def solver(func_name, *args):
 def risk_contribution(df_pos):
     df_rc = df_pos.copy()
     for idx, w in df_pos.iterrows():
-        v = w.values
+        v = w.values 
         Sigma = cov_p.loc[idx]
         rc = v * (v.dot(Sigma)) / (v.dot(Sigma).dot(v)) #** 0.5
         df_rc.loc[idx] = rc
@@ -151,7 +161,7 @@ for pos in pos_list:
     plt.show()
     
 for pos in pos_list:
-    pos.plot.box(rot=60)
+    pos.plot.box(rot=45)
     #sns.boxplot(data=pos)
 #风险贡献
 plt.ioff()
@@ -227,9 +237,16 @@ value_plot(pos)
 df_price = (df_rtn + 1).cumprod()
 df_sigma = df_rtn.rolling(102).std() * (50) ** 0.5     #年化波动率
 
-## 改对组合进行止损增
+## 改对组合进行止损增强
 sr_rtn = value_ew.pct_change(1).fillna(0)
 sr_pos = stop_loss(sr_rtn, -0.01, 0.0)
-(sr_pos * sr_rtn + 1).cumprod().plot()
-value_ew.plot()
+plt.plot((sr_pos * sr_rtn + 1).cumprod())
+plt.plot(value_ew)
+plt.legend(['enhance', 'orgin'])
+## CPPI和TIPP
+sr_rtn = value_ew.pct_change(1).fillna(0)
+sr_pos = TIPP(sr_rtn, 5, 0.5)
+plt.plot((sr_pos * sr_rtn + 1).cumprod())
+plt.plot(value_ew)
+plt.legend(['enhance', 'orgin'])
     
