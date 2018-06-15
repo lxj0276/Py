@@ -108,7 +108,7 @@ def mean_variance(r, Sigma, lmd=2.5):
     return optimize(func, func_deriv, r, Sigma, lmd)
 
 
-def target_variance(r, Sigma, tar_sigma=0.01):
+def target_variance(r, Sigma, tar_sigma=0.005):
     ''' 均值方差优化: 目标波动率
 
     Parameters
