@@ -7,29 +7,15 @@ Created on Fri Jun  1 13:23:15 2018
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-plt.style.use('ggplot')
 from betas import *
 from Evaluation import evaluation
-import seaborn as sns
-sns.set()
-
-sns.set(font='SimHei', style='ticks', font_scale=1.5, 
-        palette=sns.color_palette('Paired', n_colors=10, desat=0.8))
-plt.stackplot(pos.index, pos.values.T)
-
-flatui = ["#a6cee3", "#1f78b4", "#b2df8a", "#33a02c", "#fb9a99", "#e31a1c", 
-          "#fdbf6f", "#ff7f00", "#cab2d6", "#6a3d9a", "#e6daa6", "#b15928",
-          "#34495e", "#95a5a6"]
-sns.set(font='SimHei', style='ticks', font_scale=1.5, 
-        palette=sns.color_palette(flatui, n_colors=13, desat=0.8))
 
 df_rtn = pd.read_csv('rtn.csv', index_col=0, parse_dates=[0], encoding='GBK')
-df_rtn = df_rtn.fillna(0)
 # 收益率和协方差的预测
-lag = 102
-rtn_p = df_rtn.shift(1).rolling(lag).mean().loc['2009':]
-rho_p = df_rtn.shift(1).rolling(lag).corr()
-cov_p = df_rtn.shift(1).rolling(lag).cov()
+lag = 51
+rtn_p = df_rtn.shift(1).rolling(lag).mean().loc['2010':]
+rho_p = df_rtn.shift(1).ewm(lag).corr()
+cov_p = df_rtn.shift(1).ewm(lag).cov()
 
 # 转换为list
 l_day = rtn_p.dropna().index.tolist()
@@ -43,6 +29,7 @@ for d in l_day:
     l_r.append(r)
     l_Rho.append(Rho)
     l_Sigma.append(Sigma)
+
 
 # 仓位、净值
 def solver(func_name, *args):
@@ -64,9 +51,9 @@ def risk_contribution(df_pos):
 
 
 # 等权重模型
-pos_ew = df_rtn['2009':].copy()
+pos_ew = df_rtn['2010':].copy()
 pos_ew.iloc[:, :] = 1 / pos_ew.shape[1]
-value_ew = (df_rtn['2009':].mean(axis=1) + 1).cumprod()
+value_ew = (df_rtn['2010':].mean(axis=1) + 1).cumprod()
 value_ew.plot()
 
 
@@ -143,7 +130,9 @@ name_list = ['EW', 'MV', 'EMV', 'RP', 'RB', 'MD', 'DeCorr', 'MSR', 'MVO', 'ReSmp
 plt.figure(dpi=300)
 for value in value_list:
     plt.plot(value)
-plt.legend(name_list)
+plt.xticks(fontsize=16)
+plt.yticks(fontsize=16)
+plt.legend(name_list, fontsize=12, bbox_to_anchor=(1, 0.5), loc=6)
 ## 评价指标
 for pos in pos_list:
     E = evaluation(pos.dropna(), df_rtn['2009':])
@@ -157,23 +146,27 @@ for pos in pos_list:
 plt.ioff() # plt.ion()
 for pos in pos_list:
     plt.stackplot(pos.index, pos.values.T)
-    plt.legend(pos.columns, bbox_to_anchor=(1, 0.5), loc=6)
+    plt.xticks(fontsize=16)
+    plt.yticks(fontsize=16)
+    plt.legend(pos.columns, fontsize=10, bbox_to_anchor=(1, 0.5), loc=6)
     plt.show()
     
 for pos in pos_list:
-    pos.plot.box(rot=45)
-    #sns.boxplot(data=pos)
+    pos.plot.box(rot=45, ylim=(-0.1, 1.2), fontsize=12, showfliers=False)
+
 #风险贡献
 plt.ioff()
 for pos in pos_list:
     df_rc = risk_contribution(pos.dropna())
     plt.stackplot(df_rc.index, df_rc.values.T)
-    plt.legend(pos.columns, bbox_to_anchor=(1, 0.5), loc=6)
+    plt.xticks(fontsize=16)
+    plt.yticks(fontsize=16)
+    plt.legend(pos.columns, fontsize=10, bbox_to_anchor=(1, 0.5), loc=6)
     plt.show()
-
+    
 for pos in pos_list:
     df_rc = risk_contribution(pos.dropna())
-    df_rc.plot.box(rot=60)
+    df_rc.plot.box(rot=45, ylim=(-0.1, 1.2), fontsize=12, showfliers=False)
  
 
 # 止损类策略
@@ -181,53 +174,57 @@ from rule import *
 #只做股票
 
 df_rtn = pd.read_csv('rtn.csv', index_col=0, parse_dates=[0], encoding='GBK')
-df_rtn = df_rtn.fillna(0)
-df_rtn_1 = df_rtn.iloc[:, :2]
+df_rtn_1 = df_rtn.iloc[:, [-1, -2, -3]]
 # 原始
-df_value = (df_rtn + 1).cumprod()
+df_value = (df_rtn_1 + 1).cumprod()
 df_value.plot()
 #
 def value_plot(df_pos):
-    df_value = (df_pos * df_rtn + 1).cumprod()
+    df_value = (df_pos * df_rtn_1 + 1).cumprod()
     return df_value
 # 止损
-df_pos = df_rtn_1.apply(lambda x: stop_loss(x, -0.03, 0.0))
+df_pos = df_rtn_1.apply(lambda x: stop_loss(x, -0.02, 0))
 plt.subplot(2,1,1)
 plt.plot(df_value)
 plt.subplot(2,1,2)
 plt.plot(value_plot(df_pos))
+plt.show()
 
-# 
-df_rtn.iloc[:, :2] = df_pos * df_rtn_1
+# 止损之后组合
+df_rtn.iloc[:, [1, -1, -2, -3]] = df_pos * df_rtn_1
+_, v = solver('risk_parity', l_Sigma)
+
+
+
 # 目标波动率
-df_sigma = df_rtn.rolling(102).std() * (50) ** 0.5     #年化波动率
+df_sigma = df_rtn_1.rolling(102).std() * (50) ** 0.5     #年化波动率
 df_pos = df_sigma.apply(lambda x: target_vol(x, 0.1, 1.0, 1))
 plt.subplot(2,1,1)
 plt.plot(df_value)
 plt.subplot(2,1,2)
 plt.plot(value_plot(df_pos))
 # 回撤控制
-df_CVaR = df_rtn.rolling(102).apply(lambda x: np.sort(x)[:int(102 * 0.05)].mean() * (50) ** 0.5)
+df_CVaR = df_rtn_1.rolling(102).apply(lambda x: np.sort(x)[:int(102 * 0.05)].mean() * (50) ** 0.5)
 df_pos = df_CVaR.apply(lambda x: dd_control(x, -0.30, 1.0))
 plt.subplot(2,1,1)
 plt.plot(df_value)
 plt.subplot(2,1,2)
 plt.plot(value_plot(df_pos))
 ## CPPI
-df_pos = df_rtn.apply(lambda x: CPPI(x, 5, 0.5))
+df_pos = df_rtn_1.apply(lambda x: CPPI(x, 5, 0.5))
 plt.subplot(2,1,1)
 plt.plot(df_value)
 plt.subplot(2,1,2)
 plt.plot(value_plot(df_pos))
 ## TIPP
-df_pos = df_rtn.apply(lambda x: TIPP(x, 5, 0.5))
+df_pos = df_rtn_1.apply(lambda x: TIPP(x, 5, 0.5))
 plt.subplot(2,1,1)
 plt.plot(df_value)
 plt.subplot(2,1,2)
 plt.plot(value_plot(df_pos))
 ## OBPI
-df_price = (df_rtn + 1).cumprod()
-df_sigma = df_rtn.rolling(102).std() * (50) ** 0.5     #年化波动率
+df_price = (df_rtn_1 + 1).cumprod()
+df_sigma = df_rtn_1.rolling(102).std() * (50) ** 0.5     #年化波动率
 pos = [OBPI(df_price.iloc[:, i], df_sigma.iloc[:, i], 0.02) for i in range(df_price.shape[1])]
 ## VaR套补
 df_VaR = df_rtn.rolling(102).apply(lambda x: np.sort(x)[int(102 * 0.05)] * (50) ** 0.5)
@@ -239,13 +236,13 @@ df_sigma = df_rtn.rolling(102).std() * (50) ** 0.5     #年化波动率
 
 ## 改对组合进行止损增强
 sr_rtn = value_ew.pct_change(1).fillna(0)
-sr_pos = stop_loss(sr_rtn, -0.01, 0.0)
+sr_pos = stop_loss(sr_rtn, -0.02, 0.0)
 plt.plot((sr_pos * sr_rtn + 1).cumprod())
 plt.plot(value_ew)
 plt.legend(['enhance', 'orgin'])
 ## CPPI和TIPP
 sr_rtn = value_ew.pct_change(1).fillna(0)
-sr_pos = TIPP(sr_rtn, 5, 0.5)
+sr_pos = CPPI(sr_rtn, 5, 0.5)
 plt.plot((sr_pos * sr_rtn + 1).cumprod())
 plt.plot(value_ew)
 plt.legend(['enhance', 'orgin'])
