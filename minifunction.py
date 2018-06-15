@@ -19,5 +19,18 @@ def re_sample(arr, lmd=2, seed=0):
     return arr[indices]
 
 
+import seaborn as sns
+sns.set()
+
+sns.set(font='SimHei', style='ticks', font_scale=1.5, 
+        palette=sns.color_palette('Set1', n_colors=13, desat=0.8))
+plt.stackplot(pos_ew.index, pos_ew.values.T)
+
+flatui = ["#a6cee3", "#1f78b4", "#b2df8a", "#33a02c", "#fb9a99", "#e31a1c", 
+          "#fdbf6f", "#ff7f00", "#cab2d6", "#6a3d9a", "#e6daa6", "#b15928",
+          "#34495e", "#95a5a6"]
+sns.set(font='SimHei', style='ticks', font_scale=1.5, 
+        palette=sns.color_palette(flatui, n_colors=13, desat=0.8))
+
 
     
