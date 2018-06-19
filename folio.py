@@ -135,10 +135,10 @@ plt.yticks(fontsize=16)
 plt.legend(name_list, fontsize=12, bbox_to_anchor=(1, 0.5), loc=6)
 ## 评价指标
 for pos in pos_list:
-    E = evaluation(pos.dropna(), df_rtn['2009':])
+    E = evaluation(pos.dropna(), df_rtn['2010':])
     print(E.YearRet())
 for pos in pos_list:
-    E = evaluation(pos.dropna(), df_rtn['2009':])
+    E = evaluation(pos.dropna(), df_rtn['2010':])
     print('####', E.CAGR(), E.Ret_Roll_1Y()[0], E.Ret_Roll_3Y()[0], E.Stdev(), E.Skew(), E.MaxDD(), E.MaxDD_Dur(), 
           E.VaR(), E.SR(), E.Calmar(), E.RoVaR(), E.Hit_Rate(), E.Gain2Pain(), sep='\n')
 
@@ -148,7 +148,7 @@ for pos in pos_list:
     plt.stackplot(pos.index, pos.values.T)
     plt.xticks(fontsize=16)
     plt.yticks(fontsize=16)
-    plt.legend(pos.columns, fontsize=10, bbox_to_anchor=(1, 0.5), loc=6)
+    plt.legend(pos.columns, fontsize=8, bbox_to_anchor=(2, 0.5), loc=6)
     plt.show()
     
 for pos in pos_list:
@@ -161,7 +161,7 @@ for pos in pos_list:
     plt.stackplot(df_rc.index, df_rc.values.T)
     plt.xticks(fontsize=16)
     plt.yticks(fontsize=16)
-    plt.legend(pos.columns, fontsize=10, bbox_to_anchor=(1, 0.5), loc=6)
+    plt.legend(pos.columns, fontsize=8, bbox_to_anchor=(1, 0.5), loc=6)
     plt.show()
     
 for pos in pos_list:
@@ -246,4 +246,43 @@ sr_pos = CPPI(sr_rtn, 5, 0.5)
 plt.plot((sr_pos * sr_rtn + 1).cumprod())
 plt.plot(value_ew)
 plt.legend(['enhance', 'orgin'])
+
+
+# 加入宏观状态
+# 1 代表宽货币宽信用 增长 通胀 大波动 宽资金
+df_state = pd.read_csv('state.csv', index_col=0, parse_dates=[0], encoding="GBK")
+# 处理时间index问题
+df_state = pd.concat([df_state, df_rtn],axis=1)
+df_state = df_state.fillna(method='bfill')
+df_state = df_state.ix[df_rtn.index, :6]
+
+
+df_tmp = pd.DataFrame()
+for pos in pos_list:
+    E = evaluation(pos.dropna(), df_rtn['2010':])
+    df = E.CAGR_State(df_state.iloc[:, 5])
+    df_tmp = pd.concat([df_tmp, df.T]).loc[:, [1, 0]]
+
+
+
+df_tmp = pd.DataFrame()
+for pos in pos_list:
+    E = evaluation(pos.dropna(), df_rtn['2010':])
+    df = E.MaxDD_State(df_state.iloc[:, 5])
+    df_tmp = pd.concat([df_tmp, df.T]).loc[:, [1, 0]]
+
+
+
+
+df_tmp = pd.DataFrame()  
+for pos in pos_list:
+    E = evaluation(pos.dropna(), df_rtn['2010':])
+    df = E.SR_State(df_state.iloc[:, 5])
+    df_tmp = pd.concat([df_tmp, df.to_frame().T]).loc[:, [1, 0]]
+
     
+# 波动率状态
+df_vol = pd.read_csv('881001.csv', index_col=0, parse_dates=[0])
+df = df_vol.groupby(lambda x: str(x.year) + '-' + str(x.month)).apply(lambda x: x.mean())
+df.mean()
+df_1 = np.where(df>df.mean(), 0, 1)
