@@ -8,6 +8,7 @@ Created on Tue May  8 11:25:05 2018
 import numpy as np
 import pandas as pd
 
+
 class evaluation(object):
     ''' 回测评价指标
     资产种类为k, 时间期数为n, index为datetime类型
@@ -19,7 +20,7 @@ class evaluation(object):
     ret_bench: Series of shape(n), 基准收益率
     trade_cost: float, 交易成本
     rate_riskfree: float, 无风险收益率
-    
+
     Returns
     -------
     评价指标
@@ -41,7 +42,7 @@ class evaluation(object):
     def _ret_p(self):
         ret = (self.pos * self.ret).sum(axis=1)
         return ret
-    
+
     def _net_value(self):
         sr_turnover = self.pos.diff(1).abs().sum(axis=1) / 2.0
         return (1 + self.ret_p - sr_turnover * self.tc).cumprod().dropna()
@@ -52,13 +53,13 @@ class evaluation(object):
 
     def _delta_days(self):
         return round(self.trade_days / len(self.pos))
-    
+
     def _ret_annual(self, x):
         return (1 + x) ** (250 / self.delta_days) - 1
-    
+
     def _vol_annual(self, x):
         return x * (250 / self.delta_days) ** 0.5
-    
+
     def Weight(self):
         return self.pos
 
@@ -67,10 +68,10 @@ class evaluation(object):
 
     def RetC(self):
         return (self.pos * self.ret).apply(lambda x: x / x.sum(), axis=1).mean()
-    
+
     def _RC(self, w, Sigma):
         return (w * Sigma.dot(w)) / (w.dot(Sigma).dot(w) ** 0.5)
-    
+
     def RiskC(self):
         cov = self.ret.ewm(alpha=0.8).cov()
         df_rc = self.pos.copy()
@@ -90,7 +91,8 @@ class evaluation(object):
 
     def _Ret_Roll(self, Y):
         lag = int(Y * 250 / self.delta_days)
-        ret_roll = self.net_value.rolling(lag).apply(lambda x: (x[-1] / x[0]) ** (1.0 / Y) - 1.0)
+        ret_roll = self.net_value.rolling(lag).apply(
+            lambda x: (x[-1] / x[0]) ** (1.0 / Y) - 1.0)
         r_mean, r_max, r_min = ret_roll.mean(), ret_roll.max(), ret_roll.min()
         return r_mean, r_max, r_min
 
@@ -128,6 +130,21 @@ class evaluation(object):
         sr_factor.name = "factor"
         tmp = pd.concat([self.ret_p, sr_factor], axis=1)
         return (tmp.groupby(by="factor").agg(np.mean).apply(self._ret_annual) - self.rrf)
+
+    def CAGR_State(self, sr_state):
+        sr_state.name = "state"
+        tmp = pd.concat([self.ret_p, sr_state], axis=1).dropna()
+        return tmp.groupby(by="state").agg(np.mean).apply(self._ret_annual)
+
+    def MaxDD_State(self, sr_state):
+        sr_state.name = "state"
+        tmp = pd.concat([self.DD(), sr_state], axis=1).dropna()
+        return tmp.groupby(by="state").agg(np.min)
+
+    def SR_State(self, sr_state):
+        sr_state.name = "state"
+        tmp = pd.concat([self.ret_p, sr_state], axis=1).dropna()
+        return tmp.groupby(by="state").apply(lambda x: self._ret_annual(x.mean() - self.rrf) / self._vol_annual(x.std())).iloc[:, 0]
 
     def Stdev(self):
         return self._vol_annual(self.ret_p.std())
@@ -217,7 +234,7 @@ class evaluation(object):
     def Sortino(self, MAR=0):
         D_ret_p = self.ret_p[self.ret_p < MAR]
         DR = self._part_Stdev(self.ret_p, D_ret_p)
-        return (self.CAGR()- MAR) / DR
+        return (self.CAGR() - MAR) / DR
 
     def Calmar(self):
         return (self.CAGR() - self.rrf) / self.MaxDD() * -1
@@ -241,11 +258,12 @@ class evaluation(object):
         return IR
 #######################################################################################
 
+
 # Demo
 from betas import weights_solver
 
 if __name__ == "__main__":
-    
+
     # 读收益率数据
     df_rtn = pd.read_csv('rtn.csv', index_col=0, parse_dates=[0])
 
@@ -266,14 +284,13 @@ if __name__ == "__main__":
         l_r.append(r)
         l_Rho.append(Rho)
         l_Sigma.append(Sigma)
-    
+
     # 用最大夏普比优化
     l_weights = weights_solver("risk_parity", l_Sigma)
 
     # 回测净值
     df_pos = pd.DataFrame(l_weights, rtn_p.dropna().index,
                           columns=df_rtn.columns)
-    
 
     # 评价指标
     E = evaluation(df_pos, df_rtn[20:])
