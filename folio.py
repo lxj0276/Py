@@ -90,8 +90,8 @@ pos_msr, value_msr = solver('max_sharpe', l_r, l_Sigma)
 pos_mvo, value_mvo = solver('target_variance', l_r, l_Sigma)
 
 ## ReSample
-pos_smp, value_smp = solver('mv_resample', l_r, l_Sigma)
-
+#pos_smp, value_smp = solver('mv_resample', l_r, l_Sigma)
+pos_smp, value_smp = pd.read_pickle('pos_smp.pkl'), pd.read_pickle('value_smp.pkl')
 '''
 ## Black-Litterman: 动量观点
 
@@ -141,6 +141,11 @@ for pos in pos_list:
     E = evaluation(pos.dropna(), df_rtn['2010':])
     print('####', E.CAGR(), E.Ret_Roll_1Y()[0], E.Ret_Roll_3Y()[0], E.Stdev(), E.Skew(), E.MaxDD(), E.MaxDD_Dur(), 
           E.VaR(), E.SR(), E.Calmar(), E.RoVaR(), E.Hit_Rate(), E.Gain2Pain(), sep='\n')
+
+for pos in pos_list:
+    E = evaluation(pos.dropna(), df_rtn['2010':])
+    print(E.VaR())
+
 
 #面积图、箱线图
 plt.ioff() # plt.ion()
@@ -232,20 +237,26 @@ df_rtn_1 = df_rtn.iloc[:, L5]
 # 原始
 df_value = (df_rtn_1 + 1).cumprod()
 df_value.plot()
-# L2 全部失败
+#
+def value_plot(df_pos):
+    df_value = (df_pos * df_rtn_1 + 1).cumprod()
+    return df_value
+
+#  全部失败
 df_sigma = df_rtn_1.rolling(51).std() * (50) ** 0.5     #年化波动率
+df_sigma.fillna(0, inplace=True)
 df_pos = df_sigma.apply(lambda x: target_vol(x, 0.05, 1.0, 0.2))
 plt.subplot(2,1,1)
-plt.plot(df_value['2010':].apply(lambda x: x/x[0]))
+plt.plot(df_value.apply(lambda x: x/x[0]))
 plt.subplot(2,1,2)
 plt.plot(value_plot(df_pos))
 
 
 f = open('print.log', 'w+')
-base = df_rtn_1['2010':].apply(lambda x: x.mean() / x.std())
+base = df_rtn_1.apply(lambda x: x.mean() / x.std())
 for i in range(100):
     df_pos = df_sigma.apply(lambda x: target_vol(x, i/100, 1.0, 1.0))
-    enhance = (df_pos * df_rtn_1)['2010':].apply(lambda x: x.mean() / (x.std() + 0.000001))
+    enhance = (df_pos * df_rtn_1).apply(lambda x: x.mean() / (x.std() + 0.000001))
     print(i, (enhance > base).all(), (enhance - base).sum(), file=f)
 f.close()
 
@@ -260,24 +271,30 @@ df_rtn_1 = df_rtn.iloc[:, L5]
 # 原始
 df_value = (df_rtn_1 + 1).cumprod()
 df_value.plot()
-# L1 -0.08, L2 -0.01 L3 -0.01 L4 -0.01, L5 -0.08
-df_CVaR = df_rtn_1.rolling(51).apply(lambda x: np.sort(x)[:int(51 * 0.10)].mean() * (50) ** 0.5)
-df_pos = df_CVaR.apply(lambda x: dd_control(x, -0.01, 1.0))
+#
+def value_plot(df_pos):
+    df_value = (df_pos * df_rtn_1 + 1).cumprod()
+    return df_value
+
+# L1 -0.02, L5 -0.02
+df_CVaR = df_rtn_1.rolling(51).apply(lambda x: np.sort(x)[:int(51 * 0.10)].mean())
+df_CVaR.fillna(0, inplace=True)
+df_pos = df_CVaR.apply(lambda x: dd_control(x, -0.02, 1.0))
 plt.figure(dpi=300)
-plt.plot(df_value['2010':].apply(lambda x: x/x[0]))
+plt.plot(df_value.apply(lambda x: x/x[0]))
 plt.plot(value_plot(df_pos))
 plt.legend(df_value.columns.tolist() + [name + "增强" for name in df_value.columns.tolist()])
 
-x = value_plot(df_pos)['2010':].apply(lambda x: spr(x))
+x = value_plot(df_pos).apply(lambda x: spr(x))
 
 
 
 f = open('print.log', 'w+')
-base = df_rtn_1['2010':].apply(lambda x: x.mean() / x.std())
+base = df_rtn_1.apply(lambda x: x.mean() / x.std())
 for i in range(1, 100):
     df_pos = df_CVaR.apply(lambda x: dd_control(x, -i/100, 1.0))
-    enhance = (df_pos * df_rtn_1)['2010':].apply(lambda x: x.mean() / (x.std() + 0.000001))
-    print(i, (enhance > base).all(), (enhance - base).sum(), file=f)
+    enhance = (df_pos * df_rtn_1).apply(lambda x: x.mean() / (x.std() + 0.000001))
+    print(i, (enhance > base).all(), (enhance - base).sum())
 f.close()
 
 
@@ -349,14 +366,47 @@ plt.subplot(2,1,2)
 plt.plot(value_plot(df_pos))
 
 
+###################################
+
+## 增强
+df_rtn = pd.read_csv('rtn.csv', index_col=0, parse_dates=[0], encoding='GBK')
+df_rtn_1 = df_rtn.iloc[:, L1]
+df_rtn_2 = df_rtn.iloc[:, L5]
+# 止损：L1 参数（-0.08，0.03） L5 参数（-0.03， 0.03）
+df_pos_1 = df_rtn_1.apply(lambda x: stop_loss(x, -0.08, 0.03))
+df_pos_2 = df_rtn_2.apply(lambda x: stop_loss(x, -0.03, 0.03))
+
+# 回撤控制：L1 -0.02, L5 -0.02
+df_CVaR_1 = df_rtn_1.rolling(51).apply(lambda x: np.sort(x)[:int(51 * 0.10)].mean())
+df_CVaR_1.fillna(0, inplace=True)
+df_pos_1 = df_CVaR_1.apply(lambda x: dd_control(x, -0.02, 1.0))
+df_CVaR_2 = df_rtn_2.rolling(51).apply(lambda x: np.sort(x)[:int(51 * 0.10)].mean())
+df_CVaR_2.fillna(0, inplace=True)
+df_pos_2 = df_CVaR_2.apply(lambda x: dd_control(x, -0.02, 1.0))
+## 增强之后组合
+plt.figure(dpi=300)
+for pos in pos_list:
+    pos_1 = pos.copy()
+    pos_1.iloc[:, L1] = pos_1.iloc[:, L1] * df_pos_1
+    pos_1.iloc[:, L5] = pos_1.iloc[:, L5] * df_pos_2
+    sr_rtn = (df_rtn * pos_1).dropna().sum(axis=1)
+    sr_value = (1 + sr_rtn).cumprod()
+    plt.plot(sr_value)
+plt.xticks(fontsize=16)
+plt.yticks(fontsize=16)
+plt.legend([n + '增强' for n in name_list], fontsize=12, bbox_to_anchor=(1, 0.5), loc=6)
+
+## 增强之后指标的计算
+for pos in pos_list:
+    pos_1 = pos.copy()
+    pos_1.iloc[:, L1] = pos_1.iloc[:, L1] * df_pos_1
+    pos_1.iloc[:, L5] = pos_1.iloc[:, L5] * df_pos_2
+    E = evaluation(pos_1.dropna(), df_rtn['2010':])
+    print('####', E.CAGR(), E.Stdev(), E.MaxDD(), E.SR(), sep='\n')
 
 
-# 止损之后组合
-df_rtn.iloc[:, [1, -1, -2, -3]] = df_pos * df_rtn_1
-_, v = solver('risk_parity', l_Sigma)
 
-
-
+########################################
 ## 改对组合进行止损增强
 sr_rtn = value_ew.pct_change(1).fillna(0)
 sr_pos = stop_loss(sr_rtn, -0.02, 0.0)
@@ -370,7 +420,7 @@ plt.plot((sr_pos * sr_rtn + 1).cumprod())
 plt.plot(value_ew)
 plt.legend(['enhance', 'orgin'])
 
-
+##########################################
 # 加入宏观状态
 # 1 代表宽货币宽信用 增长 通胀 大波动 宽资金
 df_state = pd.read_csv('state.csv', index_col=0, parse_dates=[0], encoding="GBK")
@@ -403,9 +453,64 @@ for pos in pos_list:
     df = E.SR_State(df_state.iloc[:, 5])
     df_tmp = pd.concat([df_tmp, df.to_frame().T]).loc[:, [1, 0]]
 
+################################################   
+# 各个溢价资产的宏观依赖性
+df_state = pd.read_csv('state.csv', index_col=0, parse_dates=[0], encoding="GBK")
+# 处理时间index问题
+df_state = pd.concat([df_state, df_rtn],axis=1)
+df_state = df_state.fillna(method='bfill')
+df_state = df_state.ix[df_rtn.index, :6]
+
+
+df_tmp = pd.DataFrame()
+for i in range(19):
+    df_r = df_rtn.iloc[:, [i]]
+    df_pos = pd.DataFrame(np.ones(len(df_r)), columns=df_r.columns, index=df_r.index)
+    E = evaluation(df_pos, df_r)
+    df = E.CAGR_State(df_state.iloc[:, 0])
+    df_tmp = pd.concat([df_tmp, df.T]).loc[:, [1, 0]]
+df_tmp.to_csv('tmp.csv')
+
+
+######### 股票 延伸时间长度
+# 
+df_rtn = pd.read_csv('rtn_extend.csv', index_col=0, parse_dates=[0], encoding='GBK')
+df_state = pd.read_csv('state.csv', index_col=0, parse_dates=[0], encoding="GBK")
+# 处理时间index问题
+df_state = pd.concat([df_state, df_rtn],axis=1)
+df_state = df_state.fillna(method='bfill')
+df_state = df_state.ix[df_rtn.index, :6]
+
+df_tmp = pd.DataFrame()
+for i in range(4):
+    df_r = df_rtn.iloc[:, [i]]
+    df_pos = pd.DataFrame(np.ones(len(df_r)), columns=df_r.columns, index=df_r.index)
+    E = evaluation(df_pos, df_r)
+    df = E.CAGR_State(df_state.iloc[:, 5])
+    df_tmp = pd.concat([df_tmp, df.T]).loc[:, [1, 0]]
+df_tmp.to_csv('tmp.csv')
+
+
+####################################################
+## 溢价策略宏观依赖问题
+#箱线图
+# 股票、跨类
+import seaborn as sns
+df = pd.concat([df_rtn, df_state], axis=1)
+df = df.melt(id_vars=df_state.columns, value_vars=df_rtn.columns)
+# 股票、跨类
+sns.boxplot(x='variable',  y='value', hue='增长', fliersize=0, data=df[
+        df.variable.isin(['股票市值Mom', '股票市值Vol', '股票行业Mom', '股票行业Vol', 
+                          '跨类Rev', '跨类Value', '跨类Vol'])])
+# 债券
+sns.boxplot(x='variable',  y='value', hue='增长', fliersize=0, data=df[
+        df.variable.isin(['国债CSM', '国债Carry', '国债Value', '国债TSM', 
+        '金融债CSM', '金融债Carry', '金融债Value', '金融债TSM',
+       '企业债CSM', '企业债Carry', '企业债Value', '企业债TSM'])])
+
     
-# 波动率状态
-df_vol = pd.read_csv('881001.csv', index_col=0, parse_dates=[0])
-df = df_vol.groupby(lambda x: str(x.year) + '-' + str(x.month)).apply(lambda x: x.mean())
-df.mean()
-df_1 = np.where(df>df.mean(), 0, 1)
+from scipy.stats import ttest_ind
+# 独立样本T检验
+x = df.loc[(df.variable=='股票市值Mom') & (df['信用']==0.0), 'value']
+y = df.loc[(df.variable=='股票市值Mom') & (df['信用']==1.0), 'value']
+ttest_ind(x, y)
