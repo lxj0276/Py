@@ -164,13 +164,13 @@ class evaluation(object):
         return D_stdev
 
     def Skew(self):
-        return self.ret_p.apply(lambda x: self._ret_annual(x)).skew()
+        return self.ret_p.skew()
 
     def Kurt(self):
-        return self.ret_p.apply(lambda x: self._ret_annual(x)).kurt()
+        return self.ret_p.kurt()
 
     def VaR(self, q=0.05):
-        return self.ret_p.apply(lambda x: self._ret_annual(x)).quantile(q)
+        return self.ret_p.quantile(q)
 
     def DD(self):
         return self.net_value.expanding().apply(lambda x: x[-1] / x.max() - 1)
