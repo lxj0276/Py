@@ -140,7 +140,7 @@ def dd_control(sr_CVaR, tar_CVaR, MaxExp):
     sr_pos: Series, 仓位序列
     """
     sr = sr_CVaR.copy()
-    sr[sr<=0] = -1e-8  # 避免CVaR为正的情况
+    sr[sr>=0] = -1e-8  # 避免CVaR为正的情况
     return (tar_CVaR / sr).clip(0, MaxExp)
 
 
