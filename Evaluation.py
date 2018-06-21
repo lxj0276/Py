@@ -170,7 +170,7 @@ class evaluation(object):
         return self.ret_p.kurt()
 
     def VaR(self, q=0.05):
-        return self.ret_p.quantile(q)
+        return self.ret_p.apply(lambda x: self._ret_annual(x)).quantile(q)
 
     def DD(self):
         return self.net_value.expanding().apply(lambda x: x[-1] / x.max() - 1)
