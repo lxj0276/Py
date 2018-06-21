@@ -94,6 +94,37 @@ def target_vol(sr_sigma, tar_sigma, MaxExp, tol_change):
     return sr_pos
 
 
+def target_vol_dynamic(sr_sigma, q_tar_sigma, MaxExp, tol_change):
+    """
+    目标波动率
+
+    Parameters
+    ----------
+    sr_sigma: Series, 预测波动率
+    tar_sigma: float, 目标波动率
+    MaxExp: float, 风险敞口上限
+    tol_change： float, 仓位变动幅度
+
+    Returns
+    -------
+    sr_pos: Series, 仓位序列
+    """
+    def strategy(pos, sigma):
+        tar_w = min(tar_sigma / sigma, MaxExp)
+        if (1 - tol_change) < (pos / tar_w) < (1 + tol_change):
+            return pos
+        else:
+            return tar_w
+
+    sr_pos = sr_sigma.copy()
+    sr_pos[0] = MaxExp
+    for i in range(1, len(sr_sigma)):
+        tar_sigma = sr_sigma[:i].quantile(q_tar_sigma)
+        sr_pos[i] = strategy(sr_pos[i-1], sr_sigma[i])
+
+    return sr_pos
+
+
 def dd_control(sr_CVaR, tar_CVaR, MaxExp):
     """
     回撤控制
