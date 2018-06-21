@@ -53,6 +53,9 @@ class evaluation(object):
 
     def _delta_days(self):
         return round(self.trade_days / len(self.pos))
+    
+    def _geo_avg(self, x):
+        return np.prod(1 + x) ** (1.0 / len(x)) - 1
 
     def _ret_annual(self, x):
         return (1 + x) ** (250 / self.delta_days) - 1
@@ -84,7 +87,7 @@ class evaluation(object):
         return self.pos.diff(1).abs().sum().sum() / 2.0 * 250.0 / self.trade_days
 
     def Average(self):
-        return self._ret_annual(self.ret_p.mean())
+        return self._ret_annual(self._geo_avg(self.ret_p))
 
     def CAGR(self):
         return (self.net_value[-1] / self.net_value[0]) ** (250.0 / self.trade_days) - 1.0
@@ -114,27 +117,27 @@ class evaluation(object):
     def CAGR_Bull_Bear(self, sr_state):
         sr_state.name = "state"
         tmp = pd.concat([self.ret_p, sr_state], axis=1)
-        return tmp.groupby(by="state").agg(np.mean).apply(self._ret_annual)
+        return tmp.groupby(by="state").agg(self._geo_avg).apply(self._ret_annual)
 
     def CAGR_Factor(self, sr_factor):
         sr_factor.name = "factor"
         tmp = pd.concat([self.ret_p, sr_factor], axis=1)
-        return tmp.groupby(by="factor").agg(np.mean).apply(self._ret_annual)
+        return tmp.groupby(by="factor").agg(self._geo_avg).apply(self._ret_annual)
 
     def ExCAGR_Bull_Bear(self, sr_state):
         sr_state.name = "state"
         tmp = pd.concat([self.ret_p, sr_state], axis=1)
-        return (tmp.groupby(by="state").agg(np.mean).apply(self._ret_annual) - self.rrf)
+        return (tmp.groupby(by="state").agg(self._geo_avg).apply(self._ret_annual) - self.rrf)
 
     def ExCAGR_Factor(self, sr_factor):
         sr_factor.name = "factor"
         tmp = pd.concat([self.ret_p, sr_factor], axis=1)
-        return (tmp.groupby(by="factor").agg(np.mean).apply(self._ret_annual) - self.rrf)
+        return (tmp.groupby(by="factor").agg(self._geo_avg).apply(self._ret_annual) - self.rrf)
 
     def CAGR_State(self, sr_state):
         sr_state.name = "state"
         tmp = pd.concat([self.ret_p, sr_state], axis=1).dropna()
-        return tmp.groupby(by="state").agg(np.mean).apply(self._ret_annual)
+        return tmp.groupby(by="state").agg(self._geo_avg).apply(self._ret_annual)
 
     def MaxDD_State(self, sr_state):
         sr_state.name = "state"
@@ -144,7 +147,7 @@ class evaluation(object):
     def SR_State(self, sr_state):
         sr_state.name = "state"
         tmp = pd.concat([self.ret_p, sr_state], axis=1).dropna()
-        return tmp.groupby(by="state").apply(lambda x: self._ret_annual(x.mean() - self.rrf) / self._vol_annual(x.std())).iloc[:, 0]
+        return tmp.groupby(by="state").apply(lambda x: (self._ret_annual(self._geo_avg(x)) - self.rrf) / self._vol_annual(x.std())).iloc[:, 0]
 
     def Stdev(self):
         return self._vol_annual(self.ret_p.std())
