@@ -401,8 +401,10 @@ for pos in pos_list:
     pos_1 = pos.copy()
     pos_1.iloc[:, L1] = pos_1.iloc[:, L1] * df_pos_1
     pos_1.iloc[:, L5] = pos_1.iloc[:, L5] * df_pos_2
-    E = evaluation(pos_1.dropna(), df_rtn['2010':])
-    print('####', E.CAGR(), E.Stdev(), E.MaxDD(), E.SR(), sep='\n')
+    E = evaluation(pos.dropna(), df_rtn['2010':])
+    print('####', E.CAGR(), E.Ret_Roll_1Y()[0], E.Ret_Roll_3Y()[0], E.Stdev(), E.Skew(), E.MaxDD(), E.MaxDD_Dur(), 
+          E.VaR(), E.SR(), E.Calmar(), E.RoVaR(), E.Hit_Rate(), E.Gain2Pain(), sep='\n')
+
 
 
 
@@ -498,12 +500,23 @@ df_tmp.to_csv('tmp.csv')
 import seaborn as sns
 df = pd.concat([df_rtn, df_state], axis=1)
 df = df.melt(id_vars=df_state.columns, value_vars=df_rtn.columns)
+df = df.applymap(lambda x: '+' if x==1.0 else x)
+df = df.applymap(lambda x: '-' if x==0.0 else x)
 # 股票、跨类
-sns.boxplot(x='variable',  y='value', hue='增长', fliersize=0, data=df[
+for s in df_state.columns:
+    fig, ax = plt.subplots()
+    sns.boxplot(x='variable',  y='value', hue=s, fliersize=0, data=df, ax=ax)
+    for label in ax.xaxis.get_ticklabels():
+        label.set_rotation(60)
+        
+fig, ax = plt.subplots()    
+sns.boxplot(x='variable',  y='value', hue='通胀', fliersize=0, data=df[
         df.variable.isin(['股票市值Mom', '股票市值Vol', '股票行业Mom', '股票行业Vol', 
                           '跨类Rev', '跨类Value', '跨类Vol'])])
+for label in ax.xaxis.get_ticklabels():
+    label.set_rotation(60)
 # 债券
-sns.boxplot(x='variable',  y='value', hue='增长', fliersize=0, data=df[
+sns.boxplot(x='variable',  y='value', hue='通胀', fliersize=0, data=df[
         df.variable.isin(['国债CSM', '国债Carry', '国债Value', '国债TSM', 
         '金融债CSM', '金融债Carry', '金融债Value', '金融债TSM',
        '企业债CSM', '企业债Carry', '企业债Value', '企业债TSM'])])
