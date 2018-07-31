@@ -4,29 +4,12 @@ Spyder Editor
 
 This is a temporary script file.
 """
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 plt.rcParams['font.sans-serif'] = ['SimHei']
 plt.rcParams['axes.unicode_minus'] = False
 
-f = "C:/Users/zhangyw49/Desktop/diversify.csv"
-
-df = pd.read_csv(f, index_col=0, parse_dates=[0])
-
-df_1 = df.iloc[:, [0, 2]].dropna().copy()
-
-df_1['881001.WI'].rolling(250).corr(df_1['CBA00602.CS']).plot()
-df_1['881001.WI'].rolling(50).sum().plot()
-
-df_2 = df_1.sort_values(by='881001.WI')
-x = df_2['CBA00602.CS']
-x[-80:].hist()
-
-# -*- coding: utf-8 -*-
-
-# get data from Wind
-import numpy as np
-import pandas as pd
 
 '''
 from WindPy import w
@@ -118,7 +101,22 @@ sr_gdp = df_tmp.GDP
 
 #
 reg = linear_model.LinearRegression()
-X = np.vstack([sr_rate.values, sr_cpi.values, sr_m2.values])
+X = np.vstack([sr_rate.values, sr_cpi.values, sr_m2.values, sr_gdp.values])
+y = sr_corr.values
+reg.fit(X.T, y)
+y_p = reg.predict(X.T)
+plt.plot(sr_corr.index, y, sr_corr.index, y_p)
+
+
+# 转入R处理协整
+df_r = pd.DataFrame(np.vstack([X, y]).T, index=sr_corr.index, columns=['rate', 
+                    'cpi', 'm2', 'gdp', 'corr'])
+
+df_r.to_csv('df_r.csv')
+
+#
+reg = linear_model.LinearRegression()
+X = np.vstack([sr_cpi.values, sr_m2.values])
 y = sr_corr.values
 reg.fit(X.T, y)
 y_p = reg.predict(X.T)
