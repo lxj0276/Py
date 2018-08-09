@@ -268,7 +268,7 @@ y_b = df_m['CBA00102.CS']
 # =============================================================================
 
 
-# 扩展因子； 增长，通胀，利率， 流动性，信用利差
+# 扩展因子； 增长，通胀，利率， 流动性
 # GDP增速，CPI， DR007， M2， 
 
 # 处理利率和通胀、增长和货币数据
@@ -309,3 +309,11 @@ col_names = ['corr', 'rate', 'cpi', 'm2', 'gdp', 'y_e', 'y_b']
 Rdata = pd.DataFrame(data.T, index=corr.index, columns=col_names)
 Rdata.index.name = 'Date'
 Rdata.to_csv('Rdata.csv')
+
+# 
+reg = linear_model.LinearRegression()
+X = np.vstack([rate.diff().values, cpi.diff().values, m2.diff().values, gdp.diff().values])
+y = corr.values
+reg.fit(X[:, 1:].T, y[1:])
+y_p = reg.predict(X[:, 1:].T)
+plt.plot(corr.index[1:], y[1:], corr.index[1:], y_p)
