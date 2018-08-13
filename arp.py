@@ -29,4 +29,10 @@ plt.rcParams['axes.unicode_minus'] = False
 
 # 如何更新数据？关键在于溢价因子表现跟踪
 
+参数表，如何
+
+设计一个csv，每周更新，单独建立文件夹
+
+
+
 
