@@ -225,3 +225,16 @@ def long_short(df):
     pos_list[-num_half:] = -1 / num_half
     return pos_list
 
+
+
+stock_size = pd.read_csv('stock_size.csv', index_col=[0], header=[0, 1], parse_dates=[0])
+stock_size_mom = stock_mom(stock_size)
+stock_size_vol = stock_vol(stock_size)
+
+bond_treasury = pd.read_csv('bond_treasury.csv', index_col=[0], header=[0, 1], parse_dates=[0])
+bond_treasury_
+
+
+
+bond_finance = pd.read_csv('bond_finance.csv', index_col=[0], header=[0, 1], parse_dates=[0])
+bond_corporate = pd.read_csv('bond_corporate.csv', index_col=[0], header=[0, 1], parse_dates=[0])
