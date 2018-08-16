@@ -3,21 +3,16 @@
 ## 股票 mom vol
 ## 债券 csm tsm carry value
 ## 跨类 rev vol value
-
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+plt.rcParams['font.sans-serif'] = ['SimHei']
+plt.rcParams['axes.unicode_minus'] = False
 ## 股票规模指数：上证50 沪深300 中证500 中证1000
 stock_size_index = ['000016.SH', '000300.SH', '000852.SH', '000905.SH']
 ## 股票行业申万指数：农林牧渔 采掘 化工 钢铁 有色金属 电子 家用电器 食品饮料 纺织服装 轻工制造 医药生物 公用事业 交通运输 房地产商业贸易 休闲服务 综合 建筑材料 建筑装饰 电气设备 国防军工 计算机传媒 通信 银行 非银金融 汽车 机械设备
 stock_sector_index = ['801010.SI', '801020.SI', '801030.SI', '801040.SI', '801050.SI', '801080.SI', '801110.SI', '801120.SI', '801130.SI', '801140.SI', '801150.SI', '801160.SI', '801170.SI',
                       '801180.SI', '801200.SI', '801210.SI', '801230.SI', '801710.SI', '801720.SI', '801730.SI', '801740.SI', '801750.SI', '801760.SI', '801770.SI', '801780.SI', '801790.SI', '801880.SI', '801890.SI']
-
-# 股票mom算法
-# 计算逻辑：最近五日均值与历史L天最大值之比，最后再取平均
-def stock_mom(df, m=5, l=[210, 240, 270]):
-    def mom(lag):
-        return df.rolling(m).mean() / df.rolling(lag).max().shift(1) - 1
-    
-    return mom(l[0]) + mom(l[1]) + mom(l[2])
-
 
 # 股票mom算法
 # 计算逻辑：最近五日均值与历史L天最大值之比，最后再取平均

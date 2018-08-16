@@ -16,7 +16,7 @@ asset_class_index = ['000985.CSI', 'HSCEI.HI', 'CBA00601.CS', 'CBA01201.CS', 'CB
 def asset_rev(df, l=[240, 300, 360]):
     log_rtn = np.log(df).diff(1)
     def rev(lag):
-        return log_rtn.rolling(lag).apply(lambda x: np.log(-np.sum(x[x<0]) / np.sum(x[x>0])))
+        return log_rtn.rolling(lag).apply(lambda x: np.log(-np.sum(x[x<0]) / np.sum(x[x>0])), raw=True)
     return rev(l[0]) + rev(l[1]) + rev(l[2])
 
 # 跨类vol算法
@@ -56,7 +56,6 @@ def asset_value(df, df_value_stock, df_value_bond):
 
 
 
-
 asset_value_stock = pd.read_csv('asset_value_stock.csv', index_col=[0], header=[0, 1], parse_dates=[0])
 asset_value_bond = pd.read_csv('asset_value_bond.csv', index_col=[0], header=[0], parse_dates=[0])
 
@@ -87,7 +86,7 @@ asset_class = pd.read_csv('asset_class.csv', index_col=[0], header=[0, 1], parse
 asset_calss_rev = asset_rev(asset_class)
 asser_class_vol = asset_vol(asset_class)
 
-asser_class_value = asset_value(stock_size, asset_value_stock, assetvalue_bond)
+asser_class_value = asset_value(asset_class, asset_value_stock, asset_value_bond)
 
 
 
