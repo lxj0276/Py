@@ -8,11 +8,14 @@ Created on Fri Aug 17 10:16:00 2018
 import numpy as np
 import pandas as pd
 
-def factor_to_positon(df_factor, positions):
+def factor_to_position(df_factor, positions):
     df_rank = df_factor.rank(axis=1, ascending=False)
     df_position = df_rank.applymap(lambda x: positions[int(x)-1])
     return df_position
     
+def position_to_value(df_price, df_position, df_orderdate):
+    pass
+
 
 # 股票mom算法
 ## 计算逻辑：最近五日均值与历史L天最大值之比，最后再取平均
@@ -24,7 +27,7 @@ def stock_mom_factor(df, m, lags):
 
 def stock_mom(df, m=5, lags=[210, 240, 270], positions=[0.5, 0.5, -0.5, -0.5]):
     df_factor = stock_mom_factor(df, m, lags)
-    df_position = factor_to_positon(df_factor, positions)
+    df_position = factor_to_position(df_factor, positions)
     df_price = df.copy()
     return df_price, df_position
 
@@ -41,7 +44,7 @@ def stock_vol_factor(df, m, lags):
 
 def stock_vol(df, m=5, lags=[210, 240, 270], positions=[0.5, 0.5, -0.5, -0.5]):
     df_factor = stock_vol_factor(df, m, lags)
-    df_position = factor_to_positon(df_factor, positions)
+    df_position = factor_to_position(df_factor, positions)
     df_price = df.copy()
     return df_price, df_position
 
@@ -56,7 +59,7 @@ def bond_csm_factor(df, lags):
 
 def bond_csm(df, lags=[20, 40, 60], positions=[0.5, 0.5, -0.5, -0.5]):
     df_factor = bond_csm_factor(df, lags)
-    df_position = factor_to_positon(df_factor, positions)
+    df_position = factor_to_position(df_factor, positions)
     df_price = df.copy()
     return df_price, df_position
 
@@ -107,9 +110,10 @@ def bond_value_factor(ytm_transform, m, lags):
     df_value = value(lags[0]) + value(lags[1]) + value(lags[2])
     return df_value
 
-def bond_value(df, df_ytm, transform_matrix, m=5, lags=[50, 100, 150]):
+def bond_value(df, df_ytm, transform_matrix, m=5, lags=[50, 100, 150], positions=[0.5, 0.5, -0.5, -0.5]):
     ytm_transform = bond_value_ytm(df, df_ytm, transform_matrix)
     df_factor = bond_value_factor(ytm_transform, m, lags)
+    df_position = factor_to_position(df_facotr, positions)
     df_price = df.copy()
     return df_price, df_factor
 
@@ -161,23 +165,37 @@ def bond_carry(df, df_rf, ytm_origin, transform_matrix, positions, m=60, x=[7/36
 # 跨类rev算法
 ## 计算逻辑：计算对数收益率，某段历史正收益之和与负收益之和的比值，取负，取对数，再取负
 ## 简化之后，负收益之和与正收益之和的比值，取绝对值，取对数
-def asset_rev(df, lags=[240, 300, 360]):
+def asset_rev_facotr(df, lags):
     log_rtn = np.log(df).diff(1)
     def rev(lag):
         return log_rtn.rolling(lag).apply(lambda x: np.log(-np.sum(x[x<0]) / np.sum(x[x>0])), raw=True)
-    return rev(lags[0]) + rev(lags[1]) + rev(lags[2])
+    df_factor = rev(lags[0]) + rev(lags[1]) + rev(lags[2])
+    return df_facor
+
+def asset_rev(df, lags=[240, 300, 360], positions=[0.5, -0.5]):
+    df_factor = asset_rev_facotr(df, lags)
+    df_position = factor_to_position(df_factor, positions)
+    df_price = df.copy()
+    return df_price, df_position
 
 
 # 跨类vol算法
 ## 计算逻辑：对数收益率，三段标准差的均值，三段区间标准差的变化率，再取均值
-def asset_vol(df, lags=[60, 120, 180]):
+def asset_vol_factor(df, lags=[60, 120, 180]):
     log_rtn = np.log(df).diff(1)
     def std(lag):
         return log_rtn.rolling(lag).std()
     std = std(lags[0]) + std(lags[1]) + std(lags[2])
     def vol(lag):
         return std.diff(lag)
-    return vol(lags[0]) + vol(lags[1]) + vol(lags[2])
+    df_factor = vol(lags[0]) + vol(lags[1]) + vol(lags[2])
+    return df_factor
+
+def asset_vol(df, lags=[60, 120, 180], positions=[0.5, -0.5]):
+    df_factor = asset_vol_factor(df, lags)
+    df_position = factor_to_position(df_facotr, positions)
+    df_price = df.copy()
+    return df_price, df_position
 
 
 # 跨类value算法
@@ -190,10 +208,19 @@ def asset_value_zscore(df, m):
     zscore = (roll - mean) / std
     return zscore
 
-def asset_value(df, df_value_stock, df_value_bond, m=5):
+def asset_value_factor(df, df_value_stock, df_value_bond, m):
     df_stock = asset_value_zscore(100 / df_value_stock, m)
     df_stock = df_stock.mean(axis=1, level=0)
     df_bond = asset_value_zscore(df_value_bond, m)
-    df_value = pd.concat([df_stock, df_bond], axis=1)
-    df_value.columns = df.columns
-    return df_value
+    df_factor = pd.concat([df_stock, df_bond], axis=1)
+    df_factor.columns = df.columns
+    return df_factor
+
+def asset_value(df, df_value_stock, df_value_bond, m=5, positions=[0.5, -0.5]):
+    df_factor = asset_value_factor(df, df_value_stock, df_value_bond, m)
+    df_position = factor_to_position(df_factor, positions)
+    df_price = df.copy()
+    return df_price, df_position
+
+
+    

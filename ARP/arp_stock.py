@@ -51,7 +51,7 @@ def net_value(df_price, df_factor, position=[0.5, 0.5, -0.5, -0.5]):
     return sr_rtn
 
 ## 计算因子
-stock_size = pd.read_csv('stock_size.csv', index_col=[0], header=[0, 1], parse_dates=[0])
+stock_size = pd.read_csv('./data/stock_size.csv', index_col=[0], header=[0, 1], parse_dates=[0])
 stock_size_mom = stock_mom(stock_size)
 stock_size_vol = stock_vol(stock_size)
 
