@@ -15,7 +15,19 @@ def factor_to_position(df_factor, positions):
     
 def position_to_value(df_price, df_position, df_orderdate):
     pass
+    # seperately write 
 
+
+def save_file(func):
+    def wrapper(*args, **kw):
+        func_name = func.__name__
+        suffix = func_name.split(sep='_')[-1]
+        price, position = func(*args, **kw)
+        price.to_csv('.out/price/%s.csv'%suffix)
+        position.to_csv('.out/position/%s.csv'%suffix)
+        return 0
+    print("Write Done!")
+    return wrapper
 
 # 股票mom算法
 ## 计算逻辑：最近五日均值与历史L天最大值之比，最后再取平均
@@ -30,7 +42,6 @@ def stock_mom(df, m=5, lags=[210, 240, 270], positions=[0.5, 0.5, -0.5, -0.5]):
     df_position = factor_to_position(df_factor, positions)
     df_price = df.copy()
     return df_price, df_position
-
 
 # 股票vol算法
 ## 计算逻辑：最近五日波动率均值与L天之前的五日均值之比，最后取平均
@@ -113,9 +124,9 @@ def bond_value_factor(ytm_transform, m, lags):
 def bond_value(df, df_ytm, transform_matrix, m=5, lags=[50, 100, 150], positions=[0.5, 0.5, -0.5, -0.5]):
     ytm_transform = bond_value_ytm(df, df_ytm, transform_matrix)
     df_factor = bond_value_factor(ytm_transform, m, lags)
-    df_position = factor_to_position(df_facotr, positions)
+    df_position = factor_to_position(df_factor, positions)
     df_price = df.copy()
-    return df_price, df_factor
+    return df_price, df_position
 
 
 # 债券carry算法
@@ -156,7 +167,7 @@ def bond_carry_position(df, df_carry, positions):
 
 def bond_carry(df, df_rf, ytm_origin, transform_matrix, positions, m=60, x=[7/365, 2, 4, 6, 17/2, 50/3], lags=[250, 500, 750]):
     ytm_transform = bond_carry_ytm(df, df_rf, ytm_origin, transform_matrix)
-    df_factor = bond_carry_facotr(ytm_transform, m, x, lags)
+    df_carry = bond_carry_facotr(ytm_transform, m, x, lags)
     df_position = bond_carry_position(df, df_carry, positions)
     df_price = df.copy()
     return df_price, df_position
@@ -165,15 +176,15 @@ def bond_carry(df, df_rf, ytm_origin, transform_matrix, positions, m=60, x=[7/36
 # 跨类rev算法
 ## 计算逻辑：计算对数收益率，某段历史正收益之和与负收益之和的比值，取负，取对数，再取负
 ## 简化之后，负收益之和与正收益之和的比值，取绝对值，取对数
-def asset_rev_facotr(df, lags):
+def multi_rev_facotr(df, lags):
     log_rtn = np.log(df).diff(1)
     def rev(lag):
         return log_rtn.rolling(lag).apply(lambda x: np.log(-np.sum(x[x<0]) / np.sum(x[x>0])), raw=True)
     df_factor = rev(lags[0]) + rev(lags[1]) + rev(lags[2])
-    return df_facor
+    return df_factor
 
-def asset_rev(df, lags=[240, 300, 360], positions=[0.5, -0.5]):
-    df_factor = asset_rev_facotr(df, lags)
+def multi_rev(df, lags=[240, 300, 360], positions=[0.5, -0.5]):
+    df_factor = multi_rev_facotr(df, lags)
     df_position = factor_to_position(df_factor, positions)
     df_price = df.copy()
     return df_price, df_position
@@ -181,7 +192,7 @@ def asset_rev(df, lags=[240, 300, 360], positions=[0.5, -0.5]):
 
 # 跨类vol算法
 ## 计算逻辑：对数收益率，三段标准差的均值，三段区间标准差的变化率，再取均值
-def asset_vol_factor(df, lags=[60, 120, 180]):
+def multi_vol_factor(df, lags=[60, 120, 180]):
     log_rtn = np.log(df).diff(1)
     def std(lag):
         return log_rtn.rolling(lag).std()
@@ -191,9 +202,9 @@ def asset_vol_factor(df, lags=[60, 120, 180]):
     df_factor = vol(lags[0]) + vol(lags[1]) + vol(lags[2])
     return df_factor
 
-def asset_vol(df, lags=[60, 120, 180], positions=[0.5, -0.5]):
-    df_factor = asset_vol_factor(df, lags)
-    df_position = factor_to_position(df_facotr, positions)
+def multi_vol(df, lags=[60, 120, 180], positions=[0.5, -0.5]):
+    df_factor = multi_vol_factor(df, lags)
+    df_position = factor_to_position(df_factor, positions)
     df_price = df.copy()
     return df_price, df_position
 
@@ -201,23 +212,56 @@ def asset_vol(df, lags=[60, 120, 180], positions=[0.5, -0.5]):
 # 跨类value算法
 ## 计算逻辑：对于两个股票指数，100 / pe, pb, ps, 最近五日平均，历史所有score, 再取平均，对于债券指数，YTM五日平均，取历史所有score##
 
-def asset_value_zscore(df, m):
+def multi_value_zscore(df, m):
     roll = df.rolling(m).mean()
     mean = roll.expanding().mean()
     std = roll.expanding().std()
     zscore = (roll - mean) / std
     return zscore
 
-def asset_value_factor(df, df_value_stock, df_value_bond, m):
-    df_stock = asset_value_zscore(100 / df_value_stock, m)
+def multi_value_factor(df, df_value_stock, df_value_bond, m):
+    df_stock = multi_value_zscore(100 / df_value_stock, m)
     df_stock = df_stock.mean(axis=1, level=0)
-    df_bond = asset_value_zscore(df_value_bond, m)
+    df_bond = multi_value_zscore(df_value_bond, m)
     df_factor = pd.concat([df_stock, df_bond], axis=1)
     df_factor.columns = df.columns
     return df_factor
 
-def asset_value(df, df_value_stock, df_value_bond, m=5, positions=[0.5, -0.5]):
-    df_factor = asset_value_factor(df, df_value_stock, df_value_bond, m)
+def multi_value(df, df_value_stock, df_value_bond, m=5, positions=[0.5, -0.5]):
+    df_factor = multi_value_factor(df, df_value_stock, df_value_bond, m)
     df_position = factor_to_position(df_factor, positions)
     df_price = df.copy()
     return df_price, df_position
+
+
+def file_to_frame(file_name):
+    df = pd.read_csv('./data/%s.csv'%file_name, index_col=[0], header=[0, 1], parse_dates=[0])
+    return df
+
+file_dict = {
+    "stock": ["stock_size", "stock_sector"], "bond": ["bond_treasury", "bond_finance", "bond_corporate"], 
+    "bond_ytm": ["bond_treasury_ytm", "bond_finance_ytm", "bond_corporateytm"], "multi": ["multi_asset"],
+    "multi_ytm": ["multi_asset_ytm"], "multi_pe": ["multi_asset_pe"], "dr007":["bond_dr007_rate"]
+}
+
+
+def stock_compute(df, m, x):
+    pass
+
+def bond_compute():
+    pass
+
+
+def multi_compute():
+    pass
+
+df_rf = file_to_frame(file_dict["dr007"])
+
+for file in file_dict["stock"]:
+    df = file_to_frame(file)
+    price, position = stock_vol(df)
+    # to 
+
+
+
+
