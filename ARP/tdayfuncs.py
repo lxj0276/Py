@@ -36,38 +36,33 @@ def is_trade_day(datestr):
     return (datestr in tdays)
 
 # 日期推移
-def date_shift(datestr, shift_days):
+def tday_shift(datestr, shift_days):
     tdays = get_trade_days()
-    idx = tdays.index(datestr)
-    date = tdays[idx-shift_days]
+    if shift_days < 0:
+        early_days = [day for day in tdays if day < datestr]
+        date = early_days[shift_days]
+    elif shift_days > 0:
+        early_days = [day for day in tdays if day > datestr]
+        date = early_days[shift_days]      
     return date
 
-# 日期滚动
-def date_rolling(datestr, rolling_days):
-    date_roll = date_shift(rolling_days)
-    if rolling_days > 0:
-        return get_date_list(date_roll, datestr)
-    else:
-        return get_date_list(datestr, date_roll)
-
 # 获取期间交易日序列
-def get_date_list(begin_datestr, end_datestr):
+def get_tday_list(begin_datestr, end_datestr):
     tdays = get_trade_days()
-    begin_idx = tdays.index(begin_datestr)
-    end_idx = tdays.index(end_datestr)
-    date_list = tdays[begin_idx:end_idx+1]
-    return date_list
+    tday_list = [day for day in tdays if begin_datestr <= day  <= end_datestr]
+    return tday_list
 
 # 统计期间交易天数
-def count_trdate_days(begin_datestr, end_datestr):
+def count_tday(begin_datestr, end_datestr):
     tdays = get_trade_days()
-    begin_idx = tdays.index(begin_datestr)
-    end_idx = tdays.index(end_datestr)
+    tday_list = get_tday_list(begin_datestr, end_datestr)
+    begin_idx = tdays.index(tday_list[0])
+    end_idx = tdays.index(tday_list[-1])
     num_days = end_idx - begin_idx
     return num_days
 
 # 获取某月交易日期
-def get_month_days(monthstr):
+def get_month_tday(monthstr):
     tdays = get_trade_days()
     outList = []
     for datestr in tdays:
@@ -76,7 +71,7 @@ def get_month_days(monthstr):
     return outList
 
 # 获取某月第n个交易日
-def get_nth_day(monthstr, n):
+def get_nth_tday(monthstr, n):
     days = get_month_days(monthstr)
     if n > 0:
         idx = n - 1
@@ -85,11 +80,11 @@ def get_nth_day(monthstr, n):
     return days[idx]
 
 # 获取某月第1个交易日
-def get_first_day(monthstr):
+def get_first_tday(monthstr):
     day = get_nth_day(1)
     return day
 
 # 获取某月最后1个交易日
-def get_last_day(monthstr):
+def get_last_tday(monthstr):
     day = get_nth_day(-1)
     return day

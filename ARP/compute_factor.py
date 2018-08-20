@@ -221,6 +221,3 @@ def asset_value(df, df_value_stock, df_value_bond, m=5, positions=[0.5, -0.5]):
     df_position = factor_to_position(df_factor, positions)
     df_price = df.copy()
     return df_price, df_position
-
-
-    
