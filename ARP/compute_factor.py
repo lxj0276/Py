@@ -13,21 +13,6 @@ def factor_to_position(df_factor, positions):
     df_position = df_rank.applymap(lambda x: positions[int(x)-1])
     return df_position
     
-def position_to_value(df_price, df_position, df_orderdate):
-    pass
-    # seperately write 
-
-
-def save_file(func):
-    def wrapper(*args, **kw):
-        func_name = func.__name__
-        suffix = func_name.split(sep='_')[-1]
-        price, position = func(*args, **kw)
-        price.to_csv('.out/price/%s.csv'%suffix)
-        position.to_csv('.out/position/%s.csv'%suffix)
-        return 0
-    print("Write Done!")
-    return wrapper
 
 # 股票mom算法
 ## 计算逻辑：最近五日均值与历史L天最大值之比，最后再取平均
@@ -37,7 +22,7 @@ def stock_mom_factor(df, m, lags):
     df_factor = mom(lags[0]) + mom(lags[1]) + mom(lags[2])
     return df_factor
 
-def stock_mom(df, m=5, lags=[210, 240, 270], positions=[0.5, 0.5, -0.5, -0.5]):
+def stock_mom(df, *, m=5, lags=[210, 240, 270], positions=[0.5, 0.5, -0.5, -0.5]):
     df_factor = stock_mom_factor(df, m, lags)
     df_position = factor_to_position(df_factor, positions)
     df_price = df.copy()
@@ -53,7 +38,7 @@ def stock_vol_factor(df, m, lags):
     df_factor = vol(lags[0]) + vol(lags[1]) + vol(lags[2])
     return df_factor
 
-def stock_vol(df, m=5, lags=[210, 240, 270], positions=[0.5, 0.5, -0.5, -0.5]):
+def stock_vol(df, *, m=5, lags=[210, 240, 270], positions=[0.5, 0.5, -0.5, -0.5]):
     df_factor = stock_vol_factor(df, m, lags)
     df_position = factor_to_position(df_factor, positions)
     df_price = df.copy()
@@ -68,7 +53,7 @@ def bond_csm_factor(df, lags):
     df_factor = (csm(lags[0]) + csm(lags[1]) + csm(lags[2])).shift(1)
     return df_factor
 
-def bond_csm(df, lags=[20, 40, 60], positions=[0.5, 0.5, -0.5, -0.5]):
+def bond_csm(df, *, lags=[20, 40, 60], positions=[0.5, 0.5, -0.5, -0.5]):
     df_factor = bond_csm_factor(df, lags)
     df_position = factor_to_position(df_factor, positions)
     df_price = df.copy()
@@ -101,15 +86,15 @@ def bond_tsm_position(df_tsm):
     df = df / n
     return df
 
-def bond_tsm(df, df_rf, lags=[20, 40, 60]):
+def bond_tsm(df, df_rf, *, lags=[20, 40, 60]):
     df_price, df_factor = bond_tsm_factor(df, df_rf, lags)
     df_position = bond_tsm_position(df_factor)
     return df_price, df_position
 
 # 债券value算法
 ## 计算逻辑：YTM五日平均，分别取50，100，150日最大值的比率平均
-def bond_value_ytm(df, ytm_origin, transform_matrix):
-    ytm_transform = ytm_origin.dot(transform_matrix)
+def bond_value_ytm(df, df_ytm, transform_matrix):
+    ytm_transform = df_ytm.dot(transform_matrix)
     ytm_transform.columns = df.columns
     return ytm_transform 
 
@@ -121,7 +106,7 @@ def bond_value_factor(ytm_transform, m, lags):
     df_value = value(lags[0]) + value(lags[1]) + value(lags[2])
     return df_value
 
-def bond_value(df, df_ytm, transform_matrix, m=5, lags=[50, 100, 150], positions=[0.5, 0.5, -0.5, -0.5]):
+def bond_value(df, df_ytm, *, transform_matrix, m=5, lags=[50, 100, 150], positions=[0.5, 0.5, -0.5, -0.5]):
     ytm_transform = bond_value_ytm(df, df_ytm, transform_matrix)
     df_factor = bond_value_factor(ytm_transform, m, lags)
     df_position = factor_to_position(df_factor, positions)
@@ -137,8 +122,8 @@ def bond_value(df, df_ytm, transform_matrix, m=5, lags=[50, 100, 150], positions
 # 5. 对斜率， 100 * （最近60天 - 之前750天），以及500天和250天
 # 6. 对上述求均值。并称之为套索
 # 7. 套索为正，买长，套索为负，买短
-def bond_carry_ytm(df, df_rf, ytm_origin, transform_matrix):
-    ytm_transform = ytm_origin.dot(transform_matrix)
+def bond_carry_ytm(df, df_rf, df_ytm, transform_matrix):
+    ytm_transform = df_ytm.dot(transform_matrix)
     ytm_transform.columns = df.columns
     df_rf.columns = ['rf']
     ytm_transform = pd.concat([df_rf, ytm_transform], axis=1)
@@ -165,8 +150,8 @@ def bond_carry_position(df, df_carry, positions):
     df_position = np.where(df_carry>0, df_position, -1 * df_position)
     return df_position
 
-def bond_carry(df, df_rf, ytm_origin, transform_matrix, positions, m=60, x=[7/365, 2, 4, 6, 17/2, 50/3], lags=[250, 500, 750]):
-    ytm_transform = bond_carry_ytm(df, df_rf, ytm_origin, transform_matrix)
+def bond_carry(df, df_rf, df_ytm, *, transform_matrix, x=[7/365, 2, 4, 6, 17/2, 50/3], m=60, lags=[250, 500, 750], positions=[]):
+    ytm_transform = bond_carry_ytm(df, df_rf, df_ytm, transform_matrix)
     df_carry = bond_carry_facotr(ytm_transform, m, x, lags)
     df_position = bond_carry_position(df, df_carry, positions)
     df_price = df.copy()
@@ -183,7 +168,7 @@ def multi_rev_facotr(df, lags):
     df_factor = rev(lags[0]) + rev(lags[1]) + rev(lags[2])
     return df_factor
 
-def multi_rev(df, lags=[240, 300, 360], positions=[0.5, -0.5]):
+def multi_rev(df, *, lags=[240, 300, 360], positions=[0.5, -0.5]):
     df_factor = multi_rev_facotr(df, lags)
     df_position = factor_to_position(df_factor, positions)
     df_price = df.copy()
@@ -202,7 +187,7 @@ def multi_vol_factor(df, lags=[60, 120, 180]):
     df_factor = vol(lags[0]) + vol(lags[1]) + vol(lags[2])
     return df_factor
 
-def multi_vol(df, lags=[60, 120, 180], positions=[0.5, -0.5]):
+def multi_vol(df, *, lags=[60, 120, 180], positions=[0.5, -0.5]):
     df_factor = multi_vol_factor(df, lags)
     df_position = factor_to_position(df_factor, positions)
     df_price = df.copy()
@@ -227,41 +212,104 @@ def multi_value_factor(df, df_value_stock, df_value_bond, m):
     df_factor.columns = df.columns
     return df_factor
 
-def multi_value(df, df_value_stock, df_value_bond, m=5, positions=[0.5, -0.5]):
+def multi_value(df, df_value_stock, df_value_bond, *, m=5, positions=[0.5, -0.5]):
     df_factor = multi_value_factor(df, df_value_stock, df_value_bond, m)
     df_position = factor_to_position(df_factor, positions)
     df_price = df.copy()
     return df_price, df_position
 
 
+
 def file_to_frame(file_name):
     df = pd.read_csv('./data/%s.csv'%file_name, index_col=[0], header=[0, 1], parse_dates=[0])
     return df
 
-file_dict = {
-    "stock": ["stock_size", "stock_sector"], "bond": ["bond_treasury", "bond_finance", "bond_corporate"], 
-    "bond_ytm": ["bond_treasury_ytm", "bond_finance_ytm", "bond_corporateytm"], "multi": ["multi_asset"],
-    "multi_ytm": ["multi_asset_ytm"], "multi_pe": ["multi_asset_pe"], "dr007":["bond_dr007_rate"]
-}
+def save_file(price, position, file_name):
+    price.to_csv('.out/price/%s.csv'%file_name)
+    position.to_csv('.out/position/%s.csv'%file_name)
+    print("\n%s: Computing!"%file_name)
+    return 0
 
 
-def stock_compute(df, m, x):
-    pass
-
-def bond_compute():
-    pass
-
-
-def multi_compute():
-    pass
-
-df_rf = file_to_frame(file_dict["dr007"])
-
-for file in file_dict["stock"]:
-    df = file_to_frame(file)
-    price, position = stock_vol(df)
-    # to 
+def compute_now(param_dict):
+    stock_size = file_to_frame("stock_size")
+    stock_sector = file_to_frame("stock_sector")
+    bond_treasury = file_to_frame("bond_treasury")
+    bond_finance = file_to_frame("bond_finance")
+    bond_corporate = file_to_frame("bond_corporate")
+    multi_asset = file_to_frame("multi_asset")
+    bond_dr007_rate = file_to_frame("bond_dr007_rate")
+    bond_treasury_ytm = file_to_frame("bond_treasury_ytm")
+    bond_finance_ytm = file_to_frame("bond_finance_ytm")
+    bond_corporate_ytm = file_to_frame("bond_corporate_ytm")
+    multi_asset_ytm = file_to_frame("multi_asset_ytm")
+    multi_asset_pe = file_to_frame("multi_asset_pe")
 
 
+    price, position = stock_mom(stock_size, **param_dict["stock"]["size"]["mom"])
+    save_file(price, position, "stock_size_mom")
+
+    price, position = stock_vol(stock_size, **param_dict["stock"]["size"]["vol"])
+    save_file(price, position, "stock_size_vol")
+
+    price, position = stock_mom(stock_sector, **param_dict["stock"]["sector"]["mom"])
+    save_file(price, position, "stock_size_mom")
+
+    price, position = stock_vol(stock_sector, **param_dict["stock"]["sector"]["vol"])
+    save_file(price, position, "stock_size_vol")
 
 
+
+
+    price, position = bond_csm(bond_treasury, **param_dict["bond"]["treasury"]["csm"])
+    save_file(price, position, "bond_treasury_csm")
+
+    price, position = bond_tsm(bond_treasury, bond_dr007_rate, **param_dict["bond"]["treasury"]["tsm"])
+    save_file(price, position, "bond_treasury_tsm")
+
+    price, position = bond_value(bond_treasury, bond_treasury_ytm, **param_dict["bond"]["treasury"]["value"])
+    save_file(price, position, "bond_treasury_value")
+
+    price, position = bond_carry(bond_treasury, bond_dr007_rate, bond_treasury_ytm, **param_dict["bond"]["treasury"]["carry"])
+    save_file(price, position, "bond_treasury_carry")
+
+
+
+
+    price, position = bond_csm(bond_finance, **param_dict["bond"]["finance"]["csm"])
+    save_file(price, position, "bond_finance_csm")
+
+    price, position = bond_tsm(bond_finance, bond_dr007_rate, **param_dict["bond"]["finance"]["tsm"])
+    save_file(price, position, "bond_finance_tsm")
+
+    price, position = bond_value(bond_finance, bond_finance_ytm, **param_dict["bond"]["finance"]["value"])
+    save_file(price, position, "bond_finance_value")
+
+    price, position = bond_carry(bond_finance, bond_dr007_rate, bond_finance_ytm, **param_dict["bond"]["finance"]["carry"])
+    save_file(price, position, "bond_finance_carry")
+
+
+
+    price, position = bond_csm(bond_corporate, **param_dict["bond"]["corporate"]["csm"])
+    save_file(price, position, "bond_corporate_csm")
+
+    price, position = bond_tsm(bond_corporate, bond_dr007_rate, **param_dict["bond"]["corporate"]["tsm"])
+    save_file(price, position, "bond_corporate_tsm")
+
+    price, position = bond_value(bond_corporate, bond_corporate_ytm, **param_dict["bond"]["corporate"]["value"])
+    save_file(price, position, "bond_corporate_value")
+
+    price, position = bond_carry(bond_corporate, bond_dr007_rate, bond_corporate_ytm, **param_dict["bond"]["corporate"]["carry"])
+    save_file(price, position, "bond_corporate_carry")
+
+
+    price, position = multi_rev(multi_asset, **param_dict["multi"]["asset"]["rev"])
+    save_file(price, position, "multi_asset_rev")
+
+    price, position = multi_vol(multi_asset, **param_dict["multi"]["asset"]["rev"])
+    save_file(price, position, "multi_asset_rev")
+
+    price, position = multi_value(multi_asset, multi_asset_pe, multi_asset_ytm, **param_dict["multi"]["asset"]["rev"])
+    save_file(price, position, "multi_asset_rev")
+    
+    print("\nCompute Done!")
