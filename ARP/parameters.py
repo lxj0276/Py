@@ -4,15 +4,6 @@ Created on Thu Aug 16 14:24:40 2018
 
 @author: zhangyw49
 """
-import os
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-plt.rcParams['font.sans-serif'] = ['SimHei']
-plt.rcParams['axes.unicode_minus'] = False
-
-
-
 
 code_dict = {
 # 股票规模指数：上证50 沪深300 中证500 中证1000
@@ -64,72 +55,97 @@ code_dict = {
 
 
 
-
-param_stock_size_mom = {"m": 5, "lag": [210, 240, 270], "position": [0.5, 0.5, -0.5, -0.5]}
-param_stock_sector_mom = {"m": 5, "lag": [210, 240, 270], "position": [1/14]*14 + [-1/14]*14}
-
-param_stock_sector_vol = {"m": 5, "lag": [240, 270, 300], "position": [1/14]*14 + [-1/14]*14}
-param_stock_size_vol = {"m": 5, "lag": [240, 270, 300], "position": [0.5, 0.5, -0.5, -0.5]}
-
-
-
-
-param_bond_treasury_csm = {"lags": [20, 40, 60]}
-param_bond_finance_csm = {"lags": [20, 40, 60]}
-param_bond_corporate_csm = {"lags": [20, 40, 60]}
-
-param_bond_treasury_tsm = {"lags": [20, 40, 60]}
-param_bond_finance_tsm = {"lags": [20, 40, 60]}
-param_bond_corporate_tsm = {"lags": [20, 40, 60]}
-
-param_bond_treasury_value = {"m": 5, "lags": [50, 100, 150], "transform_matrix": [[1,0,0,0,0,0,0], [0,1,0,0,0,0,0], [0,0,1,0,0,0,0], [0,0,0,1/2,1/2,0,0], [0,0,0,0,0,1/3,2/3]]}
-param_bond_finance_value = {"m": 5, "lags": [50, 100, 150], "transform_matrix": [[1,0,0,0,0,0,0], [0,1,0,0,0,0,0], [0,0,1,0,0,0,0], [0,0,0,1/2,1/2,0,0], [0,0,0,0,0,1/3,2/3]]}
-param_bond_corporate_value = {"m": 5, "lags": [50, 100, 150], "transform_matrix": [[1,0,0,0,0,0,0], [0,1,0,0,0,0,0], [0,0,1,0,0,0,0], [0,0,0,1/2,1/2,0,0], [0,0,0,0,0,1/2,1/2]]}
-
-param_bond_treasury_carry = {"m": 5, "lags": [50, 100, 150], "transform_matrix": [[1,0,0,0,0,0,0], [0,1,0,0,0,0,0], [0,0,1,0,0,0,0], [0,0,0,1/2,1/2,0,0], [0,0,0,0,0,1/3,2/3]]}
-transform_matrix, position_list, m=60, x=[7/365, 2, 4, 6, 17/2, 50/3], lags=[250, 500, 750]
-param_bond_finance_carry = {"m": 5, "lags": [50, 100, 150], "transform_matrix": [[1,0,0,0,0,0,0], [0,1,0,0,0,0,0], [0,0,1,0,0,0,0], [0,0,0,1/2,1/2,0,0], [0,0,0,0,0,1/3,2/3]]}
-param_bond_corporate_carry = {"m": 5, "lags": [50, 100, 150], "transform_matrix": [[1,0,0,0,0,0,0], [0,1,0,0,0,0,0], [0,0,1,0,0,0,0], [0,0,0,1/2,1/2,0,0], [0,0,0,0,0,1/2,1/2]]}
+param_dict = {
+              "stock": {
+                        "size":   {
+                                   "mom": {
+                                           "m": 5, "lags": [210, 240, 270], "positions": [0.5, 0.5, -0.5, -0.5]
+                                          },
+                                   "vol": {
+                                           "m": 5, "lags": [240, 270, 300], "positions": [0.5, 0.5, -0.5, -0.5]
+                                         }
+                                  },
+                        "sector": {
+                                   "mom": {
+                                           "m": 5, "lags": [210, 240, 270], "positions": [0.1] * 10 + [0] * 8 + [-0.1] * 10
+                                          },
+                                   "vol": {
+                                           "m": 5, "lags": [240, 270, 300], "positions": [0.1] * 10 + [0] * 8 + [-0.1] * 10
+                                          }
+                                  }
+                       },
 
 
+              "bond": {
+                       "treasury": {
+                                    "csm":  {
+                                             "lags": [20, 40, 60], "positions": [0.5, 0.5, 0, -0.5, -0.5]
+                                            },
+                                    "tsm":  {
+                                             "lags": [20, 40, 60], "positions": [-0.5, -0.5, 0, 0.5, 0.5]
+                                            },
+                                    "value":{
+                                             "transform_matrix": [[1,0,0,0,0,0,0], [0,1,0,0,0,0,0], [0,0,1,0,0,0,0], 
+                                             [0,0,0,1/2,1/2,0,0], [0,0,0,0,0,1/3,2/3]], "m": 5, "lags": [50, 100, 150], 
+                                             "positions": [0.5, 0.5, 0, -0.5, -0.5]
+                                            },
+                                    "carry":{
+                                             "transform_matrix": [[1,0,0,0,0,0,0], [0,1,0,0,0,0,0], [0,0,1,0,0,0,0], 
+                                             [0,0,0,1/2,1/2,0,0], [0,0,0,0,0,1/3,2/3]], "x": [7/365, 2, 4, 6, 17/2, 50/3], 
+                                             "m": 5, "lags": [50, 100, 150], "positions": [0.5, 0.5, 0, -0.5, -0.5]
+                                            }
+                                   },
 
+                        "finance": {
+                                    "csm":  {
+                                             "lags": [20, 40, 60], "positions": [0.5, 0.5, 0, -0.5, -0.5]
+                                            },
+                                    "tsm":  {
+                                             "lags": [20, 40, 60], "positions": [-0.5, -0.5, 0, 0.5, 0.5]
+                                            },
+                                    "value":{
+                                             "transform_matrix": [[1,0,0,0,0,0,0], [0,1,0,0,0,0,0], [0,0,1,0,0,0,0], 
+                                             [0,0,0,1/2,1/2,0,0], [0,0,0,0,0,1/3,2/3]], "m": 5, "lags": [50, 100, 150], 
+                                             "positions": [0.5, 0.5, 0, -0.5, -0.5]
+                                            },
+                                    "carry":{
+                                             "transform_matrix": [[1,0,0,0,0,0,0], [0,1,0,0,0,0,0], [0,0,1,0,0,0,0], 
+                                             [0,0,0,1/2,1/2,0,0], [0,0,0,0,0,1/3,2/3]], "x": [7/365, 2, 4, 6, 17/2, 50/3], 
+                                            "m": 5, "lags": [50, 100, 150], "positions": [0.5, 0.5, 0, -0.5, -0.5]                                    }
+                                   },
 
+                        "corporate": {
+                                    "csm":  {
+                                             "lags": [20, 40, 60], "positions": [0.5, 0.5, 0, -0.5, -0.5]
+                                            },
+                                    "tsm":  {
+                                             "lags": [20, 40, 60], "positions": [-0.5, -0.5, 0, 0.5, 0.5]
+                                            },
+                                    "value":{
+                                             "transform_matrix": [[1,0,0,0,0,0,0], [0,1,0,0,0,0,0], [0,0,1,0,0,0,0], 
+                                             [0,0,0,1/2,1/2,0,0], [0,0,0,0,0,1/2,1/2]], "m": 5, "lags": [50, 100, 150], 
+                                             "positions": [0.5, 0.5, 0, -0.5, -0.5]
+                                            },
+                                    "carry":{
+                                             "transform_matrix": [[1,0,0,0,0,0,0], [0,1,0,0,0,0,0], [0,0,1,0,0,0,0], 
+                                             [0,0,0,1/2,1/2,0,0], [0,0,0,0,0,1/2,1/2]], "x": [7/365, 2, 4, 6, 17/2, 50/3], 
+                                             "m": 5, "lags": [50, 100, 150], "positions": [0.5, 0.5, 0, -0.5, -0.5]
+                                            }
+                                      }
+                      },
 
+            "multi": {
+                        "asset": {
+                                   "rev": {
+                                           "lags": [240, 300, 360], "positions": [0.5, 0,5, 0, -0.5, -0.5]
+                                          },
+                                  "vol":  {
+                                           "lags": [60, 120, 180], "positions": [0.5, 0,5, 0, -0.5, -0.5]
+                                          },
+                                  "value":{
+                                           "m": 5, "positions": [0.5, 0,5, 0, -0.5, -0.5]
+                                          }
+                                  }
+                      }
+              }
 
-param_asset_class_rev = {"lags": [240, 300, 360]}
-param_asset_class_vol = {"lags": [60, 120, 180]}
-param_asset_class_value = {"m": 5}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 交易日期文件
-trade_days_file = "C:/Users/zhangyw49/code/py/tDays.csv"
-df_date = pd.read_csv(trade_days_file, parse_dates=[0], index_col=[0], header=[0])
-order_date = df_date["20081231":"20180531"].iloc[::5, :]
-# 由order_date控制交易信号
-
-# 计算溢价策略表现，因子值要统一为越大越好
-def net_value(df_price, df_factor, position=[0.5, 0.5, -0.5, -0.5]):
-    price, factor = df_price["20081231":], df_factor["20081231":]
-    # T-1日末发出信号，T日以收盘价建仓
-    df_rank = factor.rank(axis=1, ascending=False, na_option="top")
-    df_position = df_rank.applymap(lambda x: position[int(x)-1])
-    # 从T+1日起收益开始计算
-    df_rtn = price.pct_change(1).fillna(0)
-    df_pos = df_position.loc[order_date.index, :]
-    df_pos = df_pos.reindex(df_rtn.index).fillna(method="bfill")
-    sr_rtn = (df_pos.shift(1) * df_rtn).sum(axis=1)
-    return sr_rtn

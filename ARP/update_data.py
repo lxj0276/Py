@@ -51,7 +51,7 @@ def update_to_csv(code_dict):
         else:
             df_update = get_multi_wsd(code_list, "close", start_date, end_date)
         df_update.iloc[2:, :].to_csv('./data/%s.csv'%file_name, header=False, mode='a')
-    return 0
+    return None
 
 def update_now(code_dict):
     w.start()
@@ -62,4 +62,6 @@ def update_now(code_dict):
         print(E)
     finally:
         w.stop()
-    return 0
+    return None
+
+# update_now(code_dict)
