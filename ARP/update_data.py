@@ -7,6 +7,7 @@ Created on Thu Aug 16 14:24:40 2018
 import numpy as np
 import pandas as pd
 import tdayfuncs as tdf
+from parameters import code_dict
 from WindPy import w
 
 
@@ -64,4 +65,6 @@ def update_now(code_dict):
         w.stop()
     return None
 
-# update_now(code_dict)
+
+if __name__ == "__main__":
+    update_now(code_dict)

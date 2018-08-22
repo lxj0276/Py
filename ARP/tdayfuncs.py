@@ -62,7 +62,7 @@ def count_tday(begin_datestr, end_datestr):
     return num_days
 
 # 获取某月交易日期
-def get_month_tday(monthstr):
+def get_month_days(monthstr):
     tdays = get_trade_days()
     outList = []
     for datestr in tdays:
@@ -81,10 +81,10 @@ def get_nth_tday(monthstr, n):
 
 # 获取某月第1个交易日
 def get_first_tday(monthstr):
-    day = get_nth_day(1)
+    day = get_nth_tday(1)
     return day
 
 # 获取某月最后1个交易日
 def get_last_tday(monthstr):
-    day = get_nth_day(-1)
+    day = get_nth_tday(-1)
     return day

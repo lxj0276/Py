@@ -7,6 +7,7 @@ Created on Fri Aug 17 10:16:00 2018
 
 import numpy as np
 import pandas as pd
+from parameters import param_dict
 
 # 因子值从大到小排列时，与positions顺序对应
 def factor_to_position(df_factor, positions):
@@ -71,7 +72,6 @@ def bond_tsm_rf(df_rf_rate):
     return df_rf
 
 def bond_tsm_factor(df, df_rf, lags):
-    df_rf.columns = ["rf"]
     df_rf = bond_tsm_rf(df_rf)
     df_bind = pd.concat([df, df_rf], axis=1)
     df_bind = df_bind.fillna(method="ffill")
@@ -84,10 +84,10 @@ def bond_tsm_position(df_tsm, positions):
     df = df_tsm.shift(1).copy()
     df.iloc[:, :3] = 1
     df_long = df.iloc[:, -3:]
-    df_long_rf = df_long.subtract(df_long.rf, axis=0)
+    df_long_rf = df_long.subtract(df_long.iloc[:, -1], axis=0)
     df.iloc[:, -3:] = df_long_rf.applymap(lambda x: 1 if x > 0 else 0)
     n = len(positions)
-    df.rf = n - df.sum(axis=1)
+    df.iloc[:, -1] = n - df.sum(axis=1)
     df_position = df.multiply(np.array(positions+[positions[-1]]))
     return df_position
 
@@ -132,7 +132,6 @@ def bond_carry_ytm(df, df_rf, ytm_origin, transform_matrix):
     transform_matrix = np.array(transform_matrix).T
     ytm_transform = ytm_origin.dot(transform_matrix)
     ytm_transform.columns = df.columns
-    df_rf.columns = ['rf']
     ytm_transform = pd.concat([df_rf, ytm_transform], axis=1)
     ytm_transform.fillna(method="ffill", inplace=True)
     return ytm_transform.dropna()
@@ -232,9 +231,9 @@ def file_to_frame(file_name):
     return df
 
 def save_file(price, position, file_name):
-    price.to_csv('./out/price/%s.csv'%file_name)
-    position.to_csv('./out/position/%s.csv'%file_name)
-    print("\n%s: Computing!"%file_name)
+    price.to_csv('./out/single/price/%s.csv'%file_name)
+    position.to_csv('./out/single/position/%s.csv'%file_name)
+    print("\n%s: Computing..."%file_name)
     return None
 
 
@@ -319,6 +318,9 @@ def compute_now(param_dict):
     save_file(price, position, "multi_asset_value")
 
 
-    print("\nCompute Done!")
+    print("\nComputation Done!")
 
-# compute_now(param_dict)
+
+
+if __name__ =="__main__":
+    compute_now(param_dict)
