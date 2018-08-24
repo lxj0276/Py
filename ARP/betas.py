@@ -146,7 +146,7 @@ def target_variance(r, Sigma, tar_sigma=0.005):
 
     return res.x
 
-def mv_resample(r, Sigma, k=1000):
+def mv_resample(r, Sigma, k=10):
     ''' 均值方差优化
 
     Parameters
@@ -428,5 +428,4 @@ if __name__ == "__main__":
     # 回测净值
     df_pos = pd.DataFrame(l_weights, rtn_p.dropna().index,
                           columns=df_rtn.columns)
-    sr_value = pos2value(df_rtn, df_pos, 4)
-    sr_value.plot()
+

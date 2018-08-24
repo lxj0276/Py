@@ -12,7 +12,7 @@ from parameters import param_dict
 # 因子值从大到小排列时，与positions顺序对应
 def factor_to_position(df_factor, positions):
     df_factor = df_factor.shift(1).dropna()
-    df_rank = df_factor.rank(axis=1, ascending=False)
+    df_rank = df_factor.rank(axis=1, method='first', ascending=False)
     df_position = df_rank.applymap(lambda x: positions[int(x)-1])
     return df_position
     
@@ -254,16 +254,15 @@ def compute_now(param_dict):
 
     price, position = stock_mom(stock_size, **param_dict["stock"]["size"]["mom"])
     save_file(price, position, "stock_size_mom")
-
+    
     price, position = stock_vol(stock_size, **param_dict["stock"]["size"]["vol"])
     save_file(price, position, "stock_size_vol")
-
+    
     price, position = stock_mom(stock_sector, **param_dict["stock"]["sector"]["mom"])
     save_file(price, position, "stock_sector_mom")
-
+    
     price, position = stock_vol(stock_sector, **param_dict["stock"]["sector"]["vol"])
     save_file(price, position, "stock_sector_vol")
-
 
 
     price, position = bond_csm(bond_treasury, **param_dict["bond"]["treasury"]["csm"])
@@ -271,14 +270,12 @@ def compute_now(param_dict):
 
     price, position = bond_tsm(bond_treasury, bond_dr007_rate, **param_dict["bond"]["treasury"]["tsm"])
     save_file(price, position, "bond_treasury_tsm")
-
+    
     price, position = bond_value(bond_treasury, bond_treasury_ytm, **param_dict["bond"]["treasury"]["value"])
     save_file(price, position, "bond_treasury_value")
 
     price, position = bond_carry(bond_treasury, bond_dr007_rate, bond_treasury_ytm, **param_dict["bond"]["treasury"]["carry"])
     save_file(price, position, "bond_treasury_carry")
-
-
 
     price, position = bond_csm(bond_finance, **param_dict["bond"]["finance"]["csm"])
     save_file(price, position, "bond_finance_csm")
@@ -291,9 +288,7 @@ def compute_now(param_dict):
 
     price, position = bond_carry(bond_finance, bond_dr007_rate, bond_finance_ytm, **param_dict["bond"]["finance"]["carry"])
     save_file(price, position, "bond_finance_carry")
-
-
-
+    
     price, position = bond_csm(bond_corporate, **param_dict["bond"]["corporate"]["csm"])
     save_file(price, position, "bond_corporate_csm")
 
@@ -305,18 +300,17 @@ def compute_now(param_dict):
 
     price, position = bond_carry(bond_corporate, bond_dr007_rate, bond_corporate_ytm, **param_dict["bond"]["corporate"]["carry"])
     save_file(price, position, "bond_corporate_carry")
-
-
+    
 
     price, position = multi_rev(multi_asset, **param_dict["multi"]["asset"]["rev"])
     save_file(price, position, "multi_asset_rev")
-
+    
     price, position = multi_vol(multi_asset, **param_dict["multi"]["asset"]["vol"])
     save_file(price, position, "multi_asset_vol")
-
+    
     price, position = multi_value(multi_asset, multi_asset_pe, multi_asset_ytm, **param_dict["multi"]["asset"]["value"])
     save_file(price, position, "multi_asset_value")
-
+    
 
     print("\nComputation Done!")
 

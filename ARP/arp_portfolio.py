@@ -8,6 +8,21 @@ import numpy as np
 import pandas as pd
 import tdayfuncs as tdf
 from betas import weights_solver
+from parameters import trade_cost
+
+
+
+def file_to_frame(file):
+    df = pd.read_csv(file, index_col=[0], header=[0, 1], parse_dates=[0])
+    return df
+
+def get_order_days():
+    trade_days = pd.to_datetime(tdf.get_trade_days()).to_series(name="Date")
+    start, end = "2008-12-31", tdf.tday_shift(tdf.get_today(), -1)
+    trade_days = trade_days[start:end]
+    order_days = trade_days[::5]
+    return order_days
+
 
 
 strategy_id = [['stock_size_mom', 'stock_size_vol'], 
@@ -18,27 +33,12 @@ strategy_id = [['stock_size_mom', 'stock_size_vol'],
 ['multi_asset_rev', 'multi_asset_vol', 'multi_asset_value']]
 
 
-
-
-def file_to_frame(file):
-    df = pd.read_csv(file, index_col=[0], header=[0, 1], parse_dates=[0])
-    return df
-
-
-def get_order_days():
-    trade_days = pd.to_datetime(tdf.get_trade_days()).to_series(name="Date")
-    start, end = "2008-12-31", tdf.tday_shift(tdf.get_today(), -1)
-    trade_days = trade_days[start:end]
-    order_days = trade_days[::5]
-    return order_days
-
-
 def price_bind(strategy_id):
     df_price = pd.DataFrame()
-    path = "./out/single/price/"
+    path_price = "./out/single/price/"
     unique_id = [s[0] for s in strategy_id]
     for u in unique_id:
-        df = file_to_frame(path + u + '.csv')
+        df = file_to_frame(path_price + u + '.csv')
         df_price = pd.concat([df_price, df], axis=1)
     df = file_to_frame(path + "bond_treasury_tsm" + '.csv')
     df_price = pd.concat([df_price, df.iloc[:, [-1]]], axis=1)
@@ -53,6 +53,30 @@ def return_bind(strategy_id):
         df_rtn = pd.concat([df_rtn, df], axis=1)
     df_rtn.columns = s_list
     return df_rtn
+
+def position_bind(strategy_id, df_weight):
+    path = "./out/single/position/"
+    s_list = [s for strategy in strategy_id for s in strategy]
+    df = file_to_frame(path + s_list[0] + ".csv")
+    df_position = pd.DataFrame(index=df.index, columns=df.columns)
+    df_weight.reindex(df_position.index).fillna(method="ffill")
+    for s in s_list:
+        df = file_to_frame(path + s +'.csv')
+        df = df.mul(df_weight.loc[:, s], axis=0)
+        df = df.fillna(method="ffill").dropna()
+        df_position = df_position.add(df, axis=0, fill_value=0)
+    return df_position
+
+
+def position_to_return(price, position, trade_cost=None):
+    rtn = price.pct_change(1)
+    if not trade_cost:
+        rtn_sum = (position.shift(1) * rtn).sum(axis=1)
+    else:
+        trade_cost = np.array(trade_cost)
+        rtn_after = rtn - position.diff(1).shift(1).abs().mul(trade_cost/2, axis=1)
+        rtn_sum = (position.shift(1) * rtn_after).sum(axis=1)
+    return rtn_sum.dropna()
 
 
 def compute_portfolio(df_rtn, order_day_list):
@@ -79,108 +103,55 @@ def compute_portfolio(df_rtn, order_day_list):
     def solver(func_name, *args):
         l_weights = weights_solver(func_name, *args)
         df_wgt = pd.DataFrame(l_weights, l_day, columns=df_rtn.columns)
+        print("\n%s computing..."%func_name)
         return df_wgt
 
     # 等权重模型
-    pos_ew = df_rtn['2010':].copy()
-    pos_ew.iloc[:, :] = 1 / pos_ew.shape[1]
+    wgt_ew = df_rtn['2010':].copy()
+    wgt_ew.iloc[:, :] = 1 / wgt_ew.shape[1]
 
     # 其他模型
     ## 最小波动率
-    pos_mv = solver('min_vol', l_Sigma)
+    wgt_mv = solver('min_vol', l_Sigma)
     ## 波动率平价
-    pos_emv = solver('vol_parity', l_Sigma)
+    wgt_emv = solver('vol_parity', l_Sigma)
     ## 风险平价
-    pos_rp = solver('risk_parity', l_Sigma)
+    wgt_rp = solver('risk_parity', l_Sigma)
     ## 风险预算  
-    pos_rb = solver('risk_budget', l_r, l_Sigma)
+    wgt_rb = solver('risk_budget', l_r, l_Sigma)
     ## 最大分散化
-    pos_md = solver('most_diversified', l_Sigma)
+    wgt_md = solver('most_diversified', l_Sigma)
     ## 最大去相关性
-    pos_decorr = solver('most_decorr', l_Rho)
+    wgt_decorr = solver('most_decorr', l_Rho)
     ## 最大夏普比
-    pos_msr = solver('max_sharpe', l_r, l_Sigma)
+    wgt_msr = solver('max_sharpe', l_r, l_Sigma)
     ## 均值-方差优化
-    pos_mvo = solver('target_variance', l_r, l_Sigma)
+    wgt_mvo = solver('target_variance', l_r, l_Sigma)
     ## ReSample
-    pos_smp, value_smp = solver('mv_resample', l_r, l_Sigma)
-    #pos_smp, value_smp = pd.read_pickle('pos_smp.pkl'), pd.read_pickle('value_smp.pkl')
+    wgt_smp = solver('mv_resample', l_r, l_Sigma)
+    #wgt_smp, value_smp = pd.read_pickle('wgt_smp.pkl'), pd.read_pickle('value_smp.pkl')
 
-    pos_list = [pos_ew, pos_mv, pos_emv, pos_rp, pos_rb, pos_md, pos_decorr, pos_msr, pos_mvo, pos_smp]
+    weight_list = [wgt_ew, wgt_mv, wgt_emv, wgt_rp, wgt_rb, wgt_md, wgt_decorr, wgt_msr, wgt_mvo, wgt_smp]
     name_list = ['EW', 'MV', 'EMV', 'RP', 'RB', 'MD', 'DeCorr', 'MSR', 'MVO', 'ReSmp']
-    return name_list, pos_list
+    return name_list, weight_list
 
 
 
-df_rtn = return_bind(strategy_id)
-order_day_list = get_order_days()["2010":].index.tolist()
-pos_list, name_list = compute_portfolio(df_rtn, order_day_list)
+def compute_now():
+    df_rtn = return_bind(strategy_id)
+
+    order_day_list = get_order_days()["2010":].index.tolist()
+    name_list, weight_list = compute_portfolio(df_rtn, order_day_list)
+
+    df_price = price_bind(strategy_id)
+    df_price.to_csv('./out/portfolio/price/price_bind.csv')
+    for name, weight in zip(name_list, weight_list):
+        df_position = position_bind(strategy_id, weight)
+        df_position.to_csv("./out/portfolio/position/%s.csv"%name)
+        df_return = position_to_return(df_price, df_position, trade_cost)
+        df_return.to_csv("./out/portfolio/return/%s.csv"%name)
 
 
-def position_bind(strategy_id, df_weight):
-    df_position = pd.DataFrame()
-    path = "./out/single/position/"
-    s_list = [s for strategy in strategy_id for s in strategy]
-    for s in s_list:
-        df = file_to_frame(path + s +'.csv')
-        df = df.mul(df_weight.loc[:, s], axis=0)
-        df = df.fillna(method="ffill").dropna()
-        df_position = df.add(df_position, axis=0, fill_value=0)
-    return df_position
-
-
-
-########################################################################
-########################################################################
-########################################################################
-########################################################################
-########################################################################
-
-
-
-plt.figure(dpi=300)
-for value in value_list:
-    plt.plot(value)
-plt.xticks(fontsize=16)
-plt.yticks(fontsize=16)
-plt.legend(name_list, fontsize=12, bbox_to_anchor=(1, 0.5), loc=6)
-## 评价指标
-for pos in pos_list:
-    E = evaluation(pos.dropna(), df_rtn['2010':])
-    print(E.YearRet())
-for pos in pos_list:
-    E = evaluation(pos.dropna(), df_rtn['2010':])
-    print('####', E.CAGR(), E.Ret_Roll_1Y()[0], E.Ret_Roll_3Y()[0], E.Stdev(), E.Skew(), E.MaxDD(), E.MaxDD_Dur(), 
-          E.VaR(), E.SR(), E.Calmar(), E.RoVaR(), E.Hit_Rate(), E.Gain2Pain(), sep='\n')
-
-for pos in pos_list:
-    E = evaluation(pos.dropna(), df_rtn['2010':])
-    print(E.VaR())
-
-
-#面积图、箱线图
-plt.ioff() # plt.ion()
-for pos in pos_list:
-    plt.stackplot(pos.index, pos.values.T)
-    plt.xticks(fontsize=16)
-    plt.yticks(fontsize=16)
-    plt.legend(pos.columns, fontsize=8, bbox_to_anchor=(1, 0.5), loc=6)
-    plt.show()
     
-for pos in pos_list:
-    pos.plot.box(rot=45, ylim=(-0.1, 1.2), fontsize=12, showfliers=False)
-
-#风险贡献
-plt.ioff()
-for pos in pos_list:
-    df_rc = risk_contribution(pos.dropna())
-    plt.stackplot(df_rc.index, df_rc.values.T)
-    plt.xticks(fontsize=16)
-    plt.yticks(fontsize=16)
-    plt.legend(pos.columns, fontsize=8, bbox_to_anchor=(1, 0.5), loc=6)
-    plt.show()
-    
-for pos in pos_list:
-    df_rc = risk_contribution(pos.dropna())
-    df_rc.plot.box(rot=45, ylim=(-0.1, 1.2), fontsize=12, showfliers=False)
- 
+if __name__ == '__main__':
+    compute_now()

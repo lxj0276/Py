@@ -53,7 +53,7 @@ code_dict = {
 "multi_asset_pe" : ['000985.CSI', 'HSCEI.HI']
 }
 
-
+trade_cost = [0.001] * 32 + [0.0005] * 21
 
 param_dict = {
               "stock": {
