@@ -7,22 +7,8 @@ Created on Fri Jun  1 13:23:15 2018
 import numpy as np
 import pandas as pd
 import tdayfuncs as tdf
-from betas import weights_solver
 from parameters import trade_cost
-
-
-
-def file_to_frame(file):
-    df = pd.read_csv(file, index_col=[0], header=[0, 1], parse_dates=[0])
-    return df
-
-def get_order_days():
-    trade_days = pd.to_datetime(tdf.get_trade_days()).to_series(name="Date")
-    start, end = "2008-12-31", tdf.tday_shift(tdf.get_today(), -1)
-    trade_days = trade_days[start:end]
-    order_days = trade_days[::5]
-    return order_days
-
+from optimize_portfolio import weights_solver
 
 
 strategy_id = [['stock_size_mom', 'stock_size_vol'], 
@@ -33,6 +19,10 @@ strategy_id = [['stock_size_mom', 'stock_size_vol'],
 ['multi_asset_rev', 'multi_asset_vol', 'multi_asset_value']]
 
 
+def file_to_frame(file, header=[0, 1]):
+    df = pd.read_csv(file, index_col=[0], header=header, parse_dates=[0])
+    return df
+
 def price_bind(strategy_id):
     df_price = pd.DataFrame()
     path_price = "./out/single/price/"
@@ -40,8 +30,10 @@ def price_bind(strategy_id):
     for u in unique_id:
         df = file_to_frame(path_price + u + '.csv')
         df_price = pd.concat([df_price, df], axis=1)
-    df = file_to_frame(path + "bond_treasury_tsm" + '.csv')
+    df = file_to_frame(path_price + "bond_treasury_tsm" + '.csv')
     df_price = pd.concat([df_price, df.iloc[:, [-1]]], axis=1)
+    df_price = df_price.fillna(method="ffill").dropna()
+    df_price.to_csv(path_price + 'price_bind.csv')
     return df_price
 
 def return_bind(strategy_id):
@@ -49,8 +41,9 @@ def return_bind(strategy_id):
     s_list = [s for strategy in strategy_id for s in strategy]
     df_rtn = pd.DataFrame()
     for s in s_list:
-        df = pd.read_csv(path_return+s+'.csv', index_col=0, parse_dates=[0])
+        df = pd.read_csv(path_return+s+'.csv', header=None, index_col=0, parse_dates=[0])
         df_rtn = pd.concat([df_rtn, df], axis=1)
+    df_rtn = df_rtn
     df_rtn.columns = s_list
     return df_rtn
 
@@ -59,12 +52,13 @@ def position_bind(strategy_id, df_weight):
     s_list = [s for strategy in strategy_id for s in strategy]
     df = file_to_frame(path + s_list[0] + ".csv")
     df_position = pd.DataFrame(index=df.index, columns=df.columns)
-    df_weight.reindex(df_position.index).fillna(method="ffill")
+    df_weight = df_weight.reindex(df_position.index).fillna(method="ffill")
     for s in s_list:
         df = file_to_frame(path + s +'.csv')
         df = df.mul(df_weight.loc[:, s], axis=0)
         df = df.fillna(method="ffill").dropna()
         df_position = df_position.add(df, axis=0, fill_value=0)
+    df_position = df_position.fillna(method="ffill").dropna()
     return df_position
 
 
@@ -75,11 +69,11 @@ def position_to_return(price, position, trade_cost=None):
     else:
         trade_cost = np.array(trade_cost)
         rtn_after = rtn - position.diff(1).shift(1).abs().mul(trade_cost/2, axis=1)
-        rtn_sum = (position.shift(1) * rtn_after).sum(axis=1)
+        rtn_sum = (position.shift(1) * rtn_after).dropna().sum(axis=1)
     return rtn_sum.dropna()
 
 
-def compute_portfolio(df_rtn, order_day_list):
+def compute_weights(df_rtn, order_day_list):
     # 收益率和协方差的预测
     lag = len(df_rtn["2009"])
     rtn_p = df_rtn.shift(1).rolling(lag).mean()
@@ -103,11 +97,11 @@ def compute_portfolio(df_rtn, order_day_list):
     def solver(func_name, *args):
         l_weights = weights_solver(func_name, *args)
         df_wgt = pd.DataFrame(l_weights, l_day, columns=df_rtn.columns)
-        print("\n%s computing..."%func_name)
+        print("\n%s: computing..."%func_name)
         return df_wgt
 
     # 等权重模型
-    wgt_ew = df_rtn['2010':].copy()
+    wgt_ew = df_rtn['2010':].copy().reindex(l_day)
     wgt_ew.iloc[:, :] = 1 / wgt_ew.shape[1]
 
     # 其他模型
@@ -137,21 +131,38 @@ def compute_portfolio(df_rtn, order_day_list):
 
 
 
-def compute_now():
+def compute_portfolio():
     df_rtn = return_bind(strategy_id)
-
-    order_day_list = get_order_days()["2010":].index.tolist()
-    name_list, weight_list = compute_portfolio(df_rtn, order_day_list)
-
     df_price = price_bind(strategy_id)
-    df_price.to_csv('./out/portfolio/price/price_bind.csv')
+    order_day_list = tdf.get_order_days()["2010":].index.tolist()
+    name_list, weight_list = compute_weights(df_rtn, order_day_list)
     for name, weight in zip(name_list, weight_list):
+        weight.to_csv("./out/portfolio/weight/%s.csv"%name)
         df_position = position_bind(strategy_id, weight)
         df_position.to_csv("./out/portfolio/position/%s.csv"%name)
         df_return = position_to_return(df_price, df_position, trade_cost)
         df_return.to_csv("./out/portfolio/return/%s.csv"%name)
+    print("\n Portfolio Complete!")
+    return None
 
 
+def update_portfolio():
+    df_rtn = return_bind(strategy_id)
+    df_price = price_bind(strategy_id)
+    latest_day = tdf.get_latest_day("./out/portfolio/weight/EW.csv")
+    order_day_list = tdf.get_order_days()[latest_day:]
+    name_list, weight_list = compute_weights(df_rtn, order_day_list)
+    for name, weight in zip(name_list, weight_list):
+        weight.iloc[1:, :].to_csv("./out/portfolio/weight/%s.csv"%name, header=False, mode='a')
+        weight = file_to_frame("./out/portfolio/weight/%s.csv"%name, header=[0])
+        df_position = position_bind(strategy_id, weight)
+        df_position.to_csv("./out/portfolio/position/%s.csv"%name)
+        df_return = position_to_return(df_price, df_position, trade_cost)
+        df_return.to_csv("./out/portfolio/return/%s.csv"%name)
+    print("Update to %s"%tdf.get_latest_day("./out/portfolio/return/EW.csv"))
+    return None
+        
+    
     
 if __name__ == '__main__':
-    compute_now()
+    compute_portfolio()

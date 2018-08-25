@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
+"""
+Created on Fri Aug 24 14:08:39 2018
 
+@author: zhangyw49
+"""
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-plt.rcParams['font.sans-serif'] = ['SimHei']
-plt.rcParams['axes.unicode_minus'] = False
 from numpy.linalg import pinv
 from scipy.optimize import minimize
 
@@ -146,7 +147,7 @@ def target_variance(r, Sigma, tar_sigma=0.005):
 
     return res.x
 
-def mv_resample(r, Sigma, k=10):
+def mv_resample(r, Sigma, k=2):
     ''' 均值方差优化
 
     Parameters

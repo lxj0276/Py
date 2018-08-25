@@ -41,8 +41,7 @@ def get_edb(codeList, beginTime, endTime, options=""):
 
 def update_to_csv(code_dict):
     for file_name, code_list in code_dict.items():
-        df = pd.read_csv('./data/%s.csv'%file_name, index_col=[0], header=[0, 1], parse_dates=[0])
-        start_date = tdf.tday_shift(df.index[-1].strftime("%Y-%m-%d"), -1)
+        start_date = tdf.tday_shift(tdf.get_latest_day('./data/%s.csv'%file_name), -1)
         end_date = tdf.tday_shift(tdf.get_today(), -1)
         token = file_name.split(sep="_")[-1]
         if token == "ytm":
@@ -54,11 +53,11 @@ def update_to_csv(code_dict):
         df_update.iloc[2:, :].to_csv('./data/%s.csv'%file_name, header=False, mode='a')
     return None
 
-def update_now(code_dict):
+def update_data(code_dict=code_dict):
     w.start()
     try:
         update_to_csv(code_dict)
-        print("\n************\nUpdate Done!\n************")
+        print("\n Update Done! \n")
     except Exception as E:
         print(E)
     finally:
@@ -67,4 +66,4 @@ def update_now(code_dict):
 
 
 if __name__ == "__main__":
-    update_now(code_dict)
+    update_data(code_dict)

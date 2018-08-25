@@ -127,7 +127,7 @@ def bond_value(df, ytm_origin, *, transform_matrix, m=5, lags=[50, 100, 150], po
 # 4. YTM对对应期限的斜率
 # 5. 对斜率， 100 * （最近60天 - 之前750天），以及500天和250天
 # 6. 对上述求均值。并称之为套索
-# 7. 套索为正，买长，套索为负，买短
+# 7. 套索为正，买短卖长，套索为负，买长卖短
 def bond_carry_ytm(df, df_rf, ytm_origin, transform_matrix):
     transform_matrix = np.array(transform_matrix).T
     ytm_transform = ytm_origin.dot(transform_matrix)
@@ -152,7 +152,7 @@ def bond_carry_facotr(ytm_transform, m, x, lags):
 def bond_carry_position(df, df_carry, positions):
     df_ones = pd.DataFrame(np.ones((df.shape[0], df.shape[1])), index=df.index, columns=df.columns)
     df_position = df_ones * positions
-    df_factor = df_carry.shift(1)[df.index].apply(lambda x: 1 if x > 0 else -1)
+    df_factor = df_carry.shift(1)[df.index].apply(lambda x: -1 if x > 0 else 1)
     df_position = df_position.multiply(df_factor, axis=0)
     return df_position
 
@@ -190,7 +190,7 @@ def multi_vol_factor(df, lags=[60, 120, 180]):
     std = std(lags[0]) + std(lags[1]) + std(lags[2])
     def vol(lag):
         return std.diff(lag)
-    df_factor = vol(lags[0]) + vol(lags[1]) + vol(lags[2])
+    df_factor = -1 * (vol(lags[0]) + vol(lags[1]) + vol(lags[2]))
     return df_factor
 
 def multi_vol(df, *, lags=[60, 120, 180], positions=[0.5, 0,5, 0, -0.5, -0.5]):
@@ -237,7 +237,7 @@ def save_file(price, position, file_name):
     return None
 
 
-def compute_now(param_dict):
+def compute_position(param_dict=param_dict):
     stock_size = file_to_frame("stock_size")
     stock_sector = file_to_frame("stock_sector")
     bond_treasury = file_to_frame("bond_treasury")
@@ -317,4 +317,4 @@ def compute_now(param_dict):
 
 
 if __name__ =="__main__":
-    compute_now(param_dict)
+    compute_position(param_dict)

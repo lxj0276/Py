@@ -4,15 +4,11 @@ Created on Mon Aug 13 09:49:26 2018
 
 @author: zhangyw49
 """
-
-# =============================================================================
-# 日期处理函数
-# =============================================================================
-
 from datetime import datetime
+import pandas as pd
 
 # 交易日期文件
-trade_days_file = "C:/Users/zhangyw49/code/py/tDays.csv"
+trade_days_file = "./date/trade_Days.csv"
 
 # 从文件读取序列
 def file2list(file):
@@ -61,30 +57,15 @@ def count_tday(begin_datestr, end_datestr):
     num_days = end_idx - begin_idx
     return num_days
 
-# 获取某月交易日期
-def get_month_days(monthstr):
-    tdays = get_trade_days()
-    outList = []
-    for datestr in tdays:
-        if datestr[:6]==monthstr:
-            outList.append(datestr)    
-    return outList
+# 得到文件最后一行的日期index
+def get_latest_day(file):
+    L = file2list(file)
+    return L[-1][:10]
 
-# 获取某月第n个交易日
-def get_nth_tday(monthstr, n):
-    days = get_month_days(monthstr)
-    if n > 0:
-        idx = n - 1
-    else:
-        idx = n
-    return days[idx]
-
-# 获取某月第1个交易日
-def get_first_tday(monthstr):
-    day = get_nth_tday(1)
-    return day
-
-# 获取某月最后1个交易日
-def get_last_tday(monthstr):
-    day = get_nth_tday(-1)
-    return day
+# 定义换仓时间，本例是从2008年12月31日起，每隔5个交易日进行换仓
+def get_order_days():
+    trade_days = pd.to_datetime(get_trade_days()).to_series(name="Date")
+    start, end = "2008-12-31", tday_shift(get_today(), -1)
+    trade_days = trade_days[start:end]
+    order_days = trade_days[::5]
+    return order_days

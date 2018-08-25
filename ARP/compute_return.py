@@ -9,18 +9,10 @@ import pandas as pd
 import tdayfuncs as tdf
 
 
-
-
 def file_to_frame(file):
     df = pd.read_csv(file, index_col=[0], header=[0, 1], parse_dates=[0])
     return df["2008-12-31":]
 
-def get_order_days():
-    trade_days = pd.to_datetime(tdf.get_trade_days()).to_series(name="Date")
-    start, end = "2008-12-31", tdf.tday_shift(tdf.get_today(), -1)
-    trade_days = trade_days[start:end]
-    order_days = trade_days[::5]
-    return order_days
 
 def position_to_return(price, position, order_days, trade_cost=None):
     pos_order = position.reindex(order_days.index)
@@ -37,7 +29,7 @@ def position_to_return(price, position, order_days, trade_cost=None):
 def compute_return():
     path_single = "./out/single/"
     file_names = os.listdir(path_single+"price/")
-    order_days = get_order_days()
+    order_days = tdf.get_order_days()
     for f in file_names:
         price = file_to_frame(path_single+"price/"+f)
         position = file_to_frame(path_single+"position/"+f)
