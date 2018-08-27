@@ -33,7 +33,7 @@ def price_bind(strategy_id):
     df = file_to_frame(path_price + "bond_treasury_tsm" + '.csv')
     df_price = pd.concat([df_price, df.iloc[:, [-1]]], axis=1)
     df_price = df_price.fillna(method="ffill").dropna()
-    df_price.to_csv(path_price + 'price_bind.csv')
+    df_price.to_csv("./out/portfolio/price/price_bind.csv")
     return df_price
 
 def return_bind(strategy_id):
@@ -142,6 +142,7 @@ def compute_portfolio():
         df_position.to_csv("./out/portfolio/position/%s.csv"%name)
         df_return = position_to_return(df_price, df_position, trade_cost)
         df_return.to_csv("./out/portfolio/return/%s.csv"%name)
+    tdf.get_order_days()["2010":].to_csv('./date/order_Days.csv', index=False)
     print("\n Portfolio Complete!")
     return None
 
@@ -159,6 +160,7 @@ def update_portfolio():
         df_position.to_csv("./out/portfolio/position/%s.csv"%name)
         df_return = position_to_return(df_price, df_position, trade_cost)
         df_return.to_csv("./out/portfolio/return/%s.csv"%name)
+    tdf.get_order_days()["2010":].to_csv('./date/order_Days.csv', index=False)
     print("Update to %s"%tdf.get_latest_day("./out/portfolio/return/EW.csv"))
     return None
         
