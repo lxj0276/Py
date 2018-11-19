@@ -33,4 +33,6 @@ sns.set(font='SimHei', style='ticks', font_scale=1.5,
         palette=sns.color_palette(flatui, n_colors=13, desat=0.8))
 
 
-    
+
+def MaxDD(net_value):
+    return net_value.expanding().apply(lambda x: x[-1] / x.max() - 1, raw=True).min()
